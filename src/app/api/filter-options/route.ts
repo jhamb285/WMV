@@ -172,7 +172,7 @@ export async function GET(request: Request) {
         Array.isArray(record.music_genre)
           ? record.music_genre
               .filter(genre => genre && genre.trim())
-              .flatMap(genre => genre.split('|').map(tag => tag.trim()).filter(tag => tag))
+              .flatMap(genre => genre.split('|').map((tag: string) => tag.trim()).filter((tag: string) => tag))
           : []
       )
     )].sort();

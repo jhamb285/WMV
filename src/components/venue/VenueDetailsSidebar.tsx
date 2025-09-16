@@ -415,7 +415,7 @@ const VenueDetailsSidebar: React.FC<VenueDetailsSidebarProps> = ({
                           <div className="flex-1">
                             <p className="text-xs font-semibold text-white mb-1.5">Vibe</p>
                             <div className="flex flex-wrap gap-1.5">
-                              {(Array.isArray(event.event_vibe) ? event.event_vibe.flatMap(v => v.split('|').map(tag => tag.trim())) : event.event_vibe.split('|').map(tag => tag.trim())).map((vibe, idx) => (
+                              {(Array.isArray(event.event_vibe) ? event.event_vibe.flatMap(v => v.split('|').map((tag: string) => tag.trim())) : event.event_vibe.split('|').map((tag: string) => tag.trim())).map((vibe, idx) => (
                                 <Badge 
                                   key={idx} 
                                   className="bg-pink-600/20 text-pink-300 text-xs px-2 py-0.5 hover:bg-pink-600/30 border border-pink-500/30"
