@@ -83,7 +83,7 @@ export async function GET(request: Request) {
 
         // Check if any of the requested vibes matches any element in the event_vibe array
         return vibeFilterToApply.some(requestedVibe =>
-          record.event_vibe.some(eventVibeElement =>
+          record.event_vibe.some((eventVibeElement: any) =>
             eventVibeElement && eventVibeElement.toLowerCase().includes(requestedVibe.toLowerCase())
           )
         );
