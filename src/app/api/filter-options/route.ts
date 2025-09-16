@@ -126,7 +126,7 @@ export async function GET(request: Request) {
         Array.isArray(record.event_vibe)
           ? record.event_vibe
               .filter(vibe => vibe && vibe.trim())
-              .flatMap(vibe => vibe.split('|').map(tag => tag.trim()).filter(tag => tag))
+              .flatMap(vibe => vibe.split('|').map((tag: string) => tag.trim()).filter((tag: string) => tag))
           : []
       )
     )].sort();
