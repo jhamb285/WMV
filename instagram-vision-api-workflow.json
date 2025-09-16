@@ -1,0 +1,118 @@
+{
+  "name": "Instagram Stories - Google Vision API Text Detection",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json['Media Link'] }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 30000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": true,
+              "maxRedirects": 5
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [200, 400],
+      "id": "download-image-node",
+      "name": "1. Download Image from URL",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Convert Downloaded Image to Base64 for Google Vision API\ntry {\n  const inputItem = $input.item;\n  \n  console.log('=== Image to Base64 Conversion ===');\n  console.log('Processing item:', $itemIndex);\n  console.log('Original Media Link:', inputItem.json['Media Link']);\n  \n  // Extract binary data from the downloaded image\n  let binaryData;\n  let fileName = 'instagram_image.jpg';\n  let mimeType = 'image/jpeg';\n  \n  // Check different possible binary data locations\n  if (inputItem.binary && inputItem.binary.data) {\n    binaryData = inputItem.binary.data.data || inputItem.binary.data;\n    fileName = inputItem.binary.data.fileName || 'instagram_image.jpg';\n    mimeType = inputItem.binary.data.mimeType || 'image/jpeg';\n  } else if (inputItem.binary) {\n    // Try to find binary data in any key\n    const binaryKey = Object.keys(inputItem.binary)[0];\n    if (binaryKey && inputItem.binary[binaryKey]) {\n      binaryData = inputItem.binary[binaryKey].data || inputItem.binary[binaryKey];\n      fileName = inputItem.binary[binaryKey].fileName || 'instagram_image.jpg';\n      mimeType = inputItem.binary[binaryKey].mimeType || 'image/jpeg';\n    }\n  }\n  \n  if (!binaryData) {\n    throw new Error('No binary image data found from download');\n  }\n  \n  // Convert to Buffer\n  let buffer;\n  if (Buffer.isBuffer(binaryData)) {\n    buffer = binaryData;\n  } else if (binaryData instanceof Uint8Array) {\n    buffer = Buffer.from(binaryData);\n  } else if (typeof binaryData === 'string') {\n    // If it's already base64, convert back to buffer first\n    buffer = Buffer.from(binaryData, 'base64');\n  } else {\n    buffer = Buffer.from(binaryData);\n  }\n  \n  // Calculate file size\n  const fileSizeBytes = buffer.length;\n  const fileSizeKB = fileSizeBytes / 1024;\n  const fileSizeMB = fileSizeKB / 1024;\n  \n  console.log(`File: ${fileName}`);\n  console.log(`Size: ${fileSizeKB.toFixed(2)} KB (${fileSizeMB.toFixed(2)} MB)`);\n  console.log(`MIME Type: ${mimeType}`);\n  \n  // Google Vision API limits\n  if (fileSizeMB > 20) {\n    throw new Error(`Image too large: ${fileSizeMB.toFixed(2)}MB (Google Vision limit: 20MB)`);\n  }\n  \n  if (fileSizeBytes < 1000) {\n    throw new Error('Image file too small, might be corrupted');\n  }\n  \n  // Convert to base64 (without data URI prefix for Google Vision)\n  const base64String = buffer.toString('base64');\n  \n  if (base64String.length < 100) {\n    throw new Error('Base64 string too short, conversion might have failed');\n  }\n  \n  console.log(`Base64 conversion successful: ${base64String.length} characters`);\n  console.log('=== Conversion Complete ===');\n  \n  // Return enhanced data\n  return {\n    json: {\n      // Preserve all original Instagram data\n      ...inputItem.json,\n      \n      // Add conversion metadata\n      image_processing: {\n        base64Image: base64String,\n        fileName: fileName,\n        mimeType: mimeType,\n        fileSizeBytes: fileSizeBytes,\n        fileSizeKB: Math.round(fileSizeKB * 100) / 100,\n        fileSizeMB: Math.round(fileSizeMB * 100) / 100,\n        base64Length: base64String.length,\n        convertedAt: new Date().toISOString(),\n        ready_for_vision_api: true\n      }\n    },\n    binary: {\n      data: {\n        data: buffer,\n        fileName: fileName,\n        mimeType: mimeType\n      }\n    }\n  };\n  \n} catch (error) {\n  console.error('❌ Base64 conversion error:', error.message);\n  \n  return {\n    json: {\n      // Preserve original data even on error\n      ...($input.item.json || {}),\n      \n      // Add error information\n      image_processing: {\n        error: true,\n        errorMessage: error.message,\n        convertedAt: new Date().toISOString(),\n        ready_for_vision_api: false\n      }\n    }\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 400],
+      "id": "convert-base64-node",
+      "name": "2. Convert to Base64",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://vision.googleapis.com/v1/images:annotate",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n  \"Authorization\": \"Bearer YOUR_ACCESS_TOKEN_HERE\",\n  \"Content-Type\": \"application/json\",\n  \"x-goog-user-project\": \"YOUR_PROJECT_ID_HERE\"\n}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"requests\": [\n    {\n      \"image\": {\n        \"content\": \"{{ $json.image_processing.base64Image }}\"\n      },\n      \"features\": [\n        {\n          \"type\": \"TEXT_DETECTION\",\n          \"maxResults\": 100\n        },\n        {\n          \"type\": \"DOCUMENT_TEXT_DETECTION\",\n          \"maxResults\": 10\n        }\n      ],\n      \"imageContext\": {\n        \"languageHints\": [\"en\", \"ar\", \"fr\"]\n      }\n    }\n  ]\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [600, 400],
+      "id": "google-vision-node",
+      "name": "3. Google Vision API",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process Google Vision API Response for Instagram Stories\ntry {\n  const inputItem = $input.item;\n  const visionResponse = inputItem.json;\n  \n  console.log('=== Processing Google Vision API Response ===');\n  console.log('Processing item:', $itemIndex);\n  \n  // Initialize comprehensive result object\n  const result = {\n    // Original Instagram story data\n    instagram_data: {\n      date: inputItem.json.Date || null,\n      userId: inputItem.json['User ID'] || null,\n      mediaLink: inputItem.json['Media Link'] || null,\n      mediaType: inputItem.json['Media Type'] || null,\n      mentions: inputItem.json.Mentions || null,\n      timestamp: inputItem.json.Timestamp || null,\n      uniqueKey: inputItem.json['Unique Key'] || null,\n      eventDate: inputItem.json.event_date || null\n    },\n    \n    // Image processing metadata\n    image_processing: inputItem.json.image_processing || {},\n    \n    // Text detection results\n    text_detection: {\n      success: false,\n      fullText: '',\n      cleanedText: '',\n      detectedLanguage: null,\n      confidence: 0,\n      wordCount: 0,\n      lineCount: 0,\n      words: [],\n      lines: [],\n      boundingBoxes: [],\n      documentText: '',\n      errorMessage: null\n    },\n    \n    // Event extraction (for future AI processing)\n    extracted_info: {\n      potential_event_name: '',\n      potential_venue: '',\n      potential_date: '',\n      potential_time: '',\n      potential_artists: [],\n      potential_price: '',\n      hashtags: [],\n      mentions: []\n    },\n    \n    processedAt: new Date().toISOString()\n  };\n  \n  // Check if Vision API call was successful\n  if (!visionResponse.responses || visionResponse.responses.length === 0) {\n    result.text_detection.errorMessage = 'No response from Vision API';\n    console.error('❌ Invalid Vision API response structure');\n    return { json: result };\n  }\n  \n  const response = visionResponse.responses[0];\n  \n  // Handle API errors\n  if (response.error) {\n    result.text_detection.errorMessage = response.error.message;\n    console.error('❌ Vision API Error:', response.error.message);\n    return { json: result };\n  }\n  \n  // Process TEXT_DETECTION results\n  if (response.textAnnotations && response.textAnnotations.length > 0) {\n    result.text_detection.success = true;\n    \n    // First annotation contains the full detected text\n    const fullTextAnnotation = response.textAnnotations[0];\n    result.text_detection.fullText = fullTextAnnotation.description || '';\n    \n    // Clean the text (remove extra whitespace, normalize)\n    result.text_detection.cleanedText = result.text_detection.fullText\n      .replace(/\\s+/g, ' ')\n      .trim();\n    \n    // Count words and lines\n    result.text_detection.wordCount = result.text_detection.cleanedText.split(' ').filter(word => word.length > 0).length;\n    result.text_detection.lineCount = result.text_detection.fullText.split('\\n').filter(line => line.trim().length > 0).length;\n    \n    // Detect language\n    if (fullTextAnnotation.locale) {\n      result.text_detection.detectedLanguage = fullTextAnnotation.locale;\n    }\n    \n    // Extract individual words (skip first annotation as it's the full text)\n    result.text_detection.words = response.textAnnotations.slice(1).map((annotation, index) => ({\n      id: index,\n      text: annotation.description,\n      confidence: annotation.confidence || 0,\n      boundingBox: annotation.boundingPoly ? {\n        vertices: annotation.boundingPoly.vertices\n      } : null\n    }));\n    \n    // Calculate average confidence\n    if (result.text_detection.words.length > 0) {\n      const totalConfidence = result.text_detection.words.reduce((sum, word) => sum + (word.confidence || 0), 0);\n      result.text_detection.confidence = Math.round((totalConfidence / result.text_detection.words.length) * 100) / 100;\n    }\n    \n    console.log(`✅ Text detected successfully:`);\n    console.log(`   Full text length: ${result.text_detection.fullText.length} characters`);\n    console.log(`   Word count: ${result.text_detection.wordCount}`);\n    console.log(`   Line count: ${result.text_detection.lineCount}`);\n    console.log(`   Language: ${result.text_detection.detectedLanguage || 'Unknown'}`);\n    console.log(`   Average confidence: ${result.text_detection.confidence}`);\n    \n  } else {\n    result.text_detection.errorMessage = 'No text detected in image';\n    console.log('ℹ️ No text annotations found in image');\n  }\n  \n  // Process DOCUMENT_TEXT_DETECTION if available\n  if (response.fullTextAnnotation) {\n    result.text_detection.documentText = response.fullTextAnnotation.text || '';\n    \n    // Extract structured text elements (pages, blocks, paragraphs)\n    if (response.fullTextAnnotation.pages) {\n      result.text_detection.pages = response.fullTextAnnotation.pages.length;\n    }\n  }\n  \n  // Basic text analysis for event information\n  const text = result.text_detection.cleanedText.toLowerCase();\n  \n  // Extract hashtags\n  const hashtagMatches = result.text_detection.fullText.match(/#\\w+/g);\n  if (hashtagMatches) {\n    result.extracted_info.hashtags = hashtagMatches;\n  }\n  \n  // Extract mentions\n  const mentionMatches = result.text_detection.fullText.match(/@\\w+/g);\n  if (mentionMatches) {\n    result.extracted_info.mentions = mentionMatches;\n  }\n  \n  // Simple pattern matching for event information\n  // Date patterns\n  const datePatterns = [\n    /\\b\\d{1,2}[\\.\\/\\-]\\d{1,2}[\\.\\/\\-]\\d{2,4}\\b/g,\n    /\\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\s+\\d{1,2}/gi,\n    /\\b\\d{1,2}\\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*/gi\n  ];\n  \n  datePatterns.forEach(pattern => {\n    const matches = text.match(pattern);\n    if (matches && matches.length > 0) {\n      result.extracted_info.potential_date = matches[0];\n    }\n  });\n  \n  // Time patterns\n  const timeMatches = text.match(/\\b\\d{1,2}[:.\\s]*\\d{0,2}\\s*(am|pm|h)\\b/gi);\n  if (timeMatches && timeMatches.length > 0) {\n    result.extracted_info.potential_time = timeMatches[0];\n  }\n  \n  // Price patterns\n  const priceMatches = text.match(/\\b(aed|dhs|\\$|€|£)\\s*\\d+/gi);\n  if (priceMatches && priceMatches.length > 0) {\n    result.extracted_info.potential_price = priceMatches[0];\n  }\n  \n  console.log('=== Processing Complete ===');\n  \n  return {\n    json: result\n  };\n  \n} catch (error) {\n  console.error('❌ Error processing Vision API response:', error.message);\n  console.error('Stack trace:', error.stack);\n  \n  return {\n    json: {\n      instagram_data: ($input.item.json || {}),\n      text_detection: {\n        success: false,\n        fullText: '',\n        errorMessage: `Processing error: ${error.message}`\n      },\n      extracted_info: {},\n      processedAt: new Date().toISOString()\n    }\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 400],
+      "id": "process-response-node",
+      "name": "4. Process Vision Response",
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "1. Download Image from URL": {
+      "main": [
+        [
+          {
+            "node": "2. Convert to Base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Convert to Base64": {
+      "main": [
+        [
+          {
+            "node": "3. Google Vision API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Google Vision API": {
+      "main": [
+        [
+          {
+            "node": "4. Process Vision Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "instagram-vision-workflow"
+  },
+  "tags": ["instagram", "ocr", "google-vision", "text-detection"],
+  "versionId": "1.0.0"
+}
