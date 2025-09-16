@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     const activeVibes = searchParams.get('vibes')?.split(',').filter(v => v) || [];
     // Parse dates handling both comma and pipe-separated values from frontend
     const dateParam = searchParams.get('dates');
-    let activeDates = [];
+    let activeDates: string[] = [];
     if (dateParam) {
       // Split by comma first, then split by pipe for malformed concatenated strings
       const dateStrings = dateParam.split(',').flatMap(d => d.split('|')).filter(d => d && d.trim());
