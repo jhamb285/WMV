@@ -2,6 +2,16 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+interface EventRecord {
+  event_vibe?: string[];
+  event_date?: string;
+  id?: number;
+  venue_name?: string;
+  special_offers?: string;
+  music_genre?: string[];
+  venue_id?: number;
+}
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -78,12 +88,12 @@ export async function GET(request: Request) {
     // Apply vibes filter in JavaScript since Supabase array substring search is complex
     let filteredData = data;
     if (vibeFilterToApply && vibeFilterToApply.length > 0) {
-      filteredData = data?.filter(record => {
+      filteredData = data?.filter((record: EventRecord) => {
         if (!record.event_vibe || !Array.isArray(record.event_vibe)) return false;
 
         // Check if any of the requested vibes matches any element in the event_vibe array
-        return vibeFilterToApply.some(requestedVibe =>
-          record.event_vibe.some((eventVibeElement: string) =>
+        return vibeFilterToApply.some((requestedVibe: string) =>
+          record.event_vibe!.some((eventVibeElement: string) =>
             eventVibeElement && eventVibeElement.toLowerCase().includes(requestedVibe.toLowerCase())
           )
         );
@@ -93,13 +103,13 @@ export async function GET(request: Request) {
     // Apply dates filter if specified
     if (dates && filteredData) {
       const dateList = dates.split(',').map(d => d.trim());
-      filteredData = filteredData.filter(record => {
+      filteredData = filteredData.filter((record: EventRecord) => {
         if (!record.event_date) return false;
 
         const eventDate = new Date(record.event_date);
         if (isNaN(eventDate.getTime())) return false;
 
-        return dateList.some(selectedDate => {
+        return dateList.some((selectedDate: string) => {
           try {
             // Parse the selected date format (DD/Month/YYYY from filter-options API)
             const [day, monthName, year] = selectedDate.split('/');

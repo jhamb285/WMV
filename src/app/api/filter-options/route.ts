@@ -2,6 +2,15 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+interface FilterRecord {
+  venue_area?: string;
+  event_vibe?: string[];
+  event_date?: string;
+  music_genre?: string[];
+  id?: number;
+  venue_name?: string;
+}
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -122,10 +131,10 @@ export async function GET(request: Request) {
     // Vibes: exclude vibe filter, apply others
     const vibeFilteredData = getFilteredDataExcluding('vibes');
     const uniqueVibes = [...new Set(
-      vibeFilteredData?.flatMap(record =>
+      vibeFilteredData?.flatMap((record: FilterRecord) =>
         Array.isArray(record.event_vibe)
           ? record.event_vibe
-              .filter(vibe => vibe && vibe.trim())
+              .filter((vibe: string) => vibe && vibe.trim())
               .flatMap(vibe => vibe.split('|').map((tag: string) => tag.trim()).filter((tag: string) => tag))
           : []
       )
@@ -168,10 +177,10 @@ export async function GET(request: Request) {
     // Genres: exclude genre filter, apply others
     const genreFilteredData = getFilteredDataExcluding('genres');
     const uniqueGenres = [...new Set(
-      genreFilteredData?.flatMap(record =>
+      genreFilteredData?.flatMap((record: FilterRecord) =>
         Array.isArray(record.music_genre)
           ? record.music_genre
-              .filter(genre => genre && genre.trim())
+              .filter((genre: string) => genre && genre.trim())
               .flatMap(genre => genre.split('|').map((tag: string) => tag.trim()).filter((tag: string) => tag))
           : []
       )

@@ -90,8 +90,8 @@ export default function Home() {
         if (!cancelled && result.success && Array.isArray(result.data)) {
           console.log('🎯 VENUE STATE UPDATE - About to set venues:', {
             count: result.data.length,
-            venueNames: result.data.map(v => v.name),
-            areas: result.data.map(v => v.area),
+            venueNames: result.data.map((v: Venue) => v.name),
+            areas: result.data.map((v: Venue) => v.area),
             currentFilters: filters
           });
           setVenues(result.data);
@@ -174,7 +174,7 @@ export default function Home() {
 
   console.log('🎯 RENDER - About to render MapContainer:', {
     venueCount: venues.length,
-    venueNames: venues.map(v => v.name),
+    venueNames: venues.map((v: Venue) => v.name),
     currentFilters: filters,
     isLoading
   });
@@ -187,7 +187,6 @@ export default function Home() {
         onVenueSelect={handleVenueSelect}
         filters={filters}
         onFiltersChange={handleFiltersChange}
-        onRefresh={handleRefresh}
         isLoading={isLoading}
         data-testid="map-container"
       />

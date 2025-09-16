@@ -2,6 +2,21 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+interface VenueResponse {
+  venue_id: number;
+  name: string;
+  area: string;
+  address: string;
+  country: string;
+  lat: number;
+  lng: number;
+  phone: string;
+  website: string;
+  category: string;
+  created_at: string;
+  final_instagram: string;
+}
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -124,7 +139,7 @@ export async function GET(request: Request) {
         
         // Check if any selected vibe appears in any of the venue's vibe strings
         return activeVibes.some(selectedVibe => 
-          venue.event_vibe.some(vibeString => 
+          venue.event_vibe.some((vibeString: string) => 
             vibeString && vibeString.toLowerCase().includes(selectedVibe.toLowerCase())
           )
         );
@@ -185,7 +200,7 @@ export async function GET(request: Request) {
               return match;
             }
           } catch (e) {
-            console.log('🗓️ ERROR - Date parsing failed for:', venueDate, selectedDate, e.message);
+            console.log('🗓️ ERROR - Date parsing failed for:', venueDate, selectedDate, e instanceof Error ? e.message : 'Unknown error');
           }
 
           return false;
@@ -202,7 +217,7 @@ export async function GET(request: Request) {
 
         // Check if any selected genre exactly matches any of the venue's genres
         return activeGenres.some(selectedGenre =>
-          venue.music_genre.some(genreString =>
+          venue.music_genre.some((genreString: string) =>
             genreString && genreString.trim().toLowerCase() === selectedGenre.trim().toLowerCase()
           )
         );
@@ -226,11 +241,11 @@ export async function GET(request: Request) {
     console.log('🔄 DEDUPLICATION - Venues after dedup:', venues.length);
 
     // Remove event_vibe, event_date, and music_genre from final response
-    venues = venues.map(({event_vibe: _event_vibe, event_date: _event_date, music_genre: _music_genre, ...venue}) => venue);
+    const venueResponse: VenueResponse[] = venues.map(({event_vibe: _event_vibe, event_date: _event_date, music_genre: _music_genre, ...venue}) => venue as VenueResponse);
 
     return NextResponse.json({
       success: true,
-      data: venues,
+      data: venueResponse,
       message: `Retrieved ${venues.length} venues from Supabase final_1`
     });
   } catch (error) {
