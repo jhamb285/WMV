@@ -101,7 +101,7 @@ export async function GET(request: Request) {
         filteredData = filteredData.filter(record => {
           if (!record.music_genre || !Array.isArray(record.music_genre)) return false;
           return activeGenres.some(selectedGenre =>
-            record.music_genre.some(genreString =>
+            record.music_genre.some((genreString: string) =>
               genreString && genreString.trim().toLowerCase() === selectedGenre.trim().toLowerCase()
             )
           );
