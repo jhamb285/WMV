@@ -117,7 +117,7 @@ export async function GET(request: Request) {
             const selectedDateOnly = new Date(selectedDateObj.getFullYear(), selectedDateObj.getMonth(), selectedDateObj.getDate());
 
             return eventDateOnly.getTime() === selectedDateOnly.getTime();
-          } catch (e) {
+          } catch {
             return false;
           }
         });

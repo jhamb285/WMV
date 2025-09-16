@@ -7,7 +7,7 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Dummy filter options data (vibes, dates, genres still dummy)
-const DUMMY_FILTER_OPTIONS = {
+// const DUMMY_FILTER_OPTIONS = {
   vibes: [
     'Brunch/Day Party',
     'Chill/Lounge',
@@ -121,7 +121,7 @@ export async function GET(request: Request) {
                 const selectedDateOnly = new Date(selectedDateObj.getFullYear(), selectedDateObj.getMonth(), selectedDateObj.getDate());
                 return venueDateOnly.getTime() === selectedDateOnly.getTime();
               }
-            } catch (e) {
+            } catch {
               return false;
             }
             return false;
@@ -174,7 +174,7 @@ export async function GET(request: Request) {
           if (!isNaN(dateObj.getTime())) {
             return dateObj;
           }
-        } catch (e) {
+        } catch {
           // If date parsing fails, skip this date
         }
         return null;

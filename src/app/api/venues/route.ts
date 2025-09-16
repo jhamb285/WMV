@@ -226,7 +226,7 @@ export async function GET(request: Request) {
     console.log('🔄 DEDUPLICATION - Venues after dedup:', venues.length);
 
     // Remove event_vibe, event_date, and music_genre from final response
-    venues = venues.map(({event_vibe, event_date, music_genre, ...venue}) => venue);
+    venues = venues.map(({event_vibe: _event_vibe, event_date: _event_date, music_genre: _music_genre, ...venue}) => venue);
 
     return NextResponse.json({
       success: true,

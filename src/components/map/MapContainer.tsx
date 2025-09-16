@@ -15,7 +15,6 @@ import '@/styles/horizontal-nav.css';
 
 interface ExtendedMapContainerProps extends MapContainerProps {
   onFiltersChange: (filters: FilterState) => void;
-  onRefresh: () => void;
   'data-testid'?: string;
 }
 
@@ -27,9 +26,16 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
   filters,
   isLoading = false,
   onFiltersChange,
-  onRefresh,
   'data-testid': dataTestId,
 }) => {
+  // Use useLoadScript to load Google Maps - MUST be at the top before any conditionals
+  const { isLoaded, loadError } = useLoadScript({
+    googleMapsApiKey: GOOGLE_MAPS_CONFIG.apiKey,
+    libraries: GOOGLE_MAPS_CONFIG.libraries,
+    language: GOOGLE_MAPS_CONFIG.language,
+    region: GOOGLE_MAPS_CONFIG.region,
+  });
+
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
   const mapViewportRef = useRef({
@@ -423,16 +429,8 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
     );
   }
 
-  // Use useLoadScript to load Google Maps
-  const { isLoaded, loadError } = useLoadScript({
-    googleMapsApiKey: GOOGLE_MAPS_CONFIG.apiKey,
-    libraries: GOOGLE_MAPS_CONFIG.libraries,
-    language: GOOGLE_MAPS_CONFIG.language,
-    region: GOOGLE_MAPS_CONFIG.region,
-  });
-
-  // Calculate live stories count (mock for now)
-  const liveStoriesCount = Math.floor(venues.length * 0.3); // 30% of venues have live stories
+  // Calculate live stories count (mock for now) - removed unused variable warning
+  // const liveStoriesCount = Math.floor(venues.length * 0.3); // 30% of venues have live stories
 
   if (loadError) {
     return (
