@@ -61,7 +61,7 @@ export async function GET(request: Request) {
         filteredData = filteredData.filter(record => {
           if (!record.event_vibe || !Array.isArray(record.event_vibe)) return false;
           return activeVibes.some(selectedVibe =>
-            record.event_vibe.some(vibeString =>
+            record.event_vibe.some((vibeString: string) =>
               vibeString && vibeString.toLowerCase().includes(selectedVibe.toLowerCase())
             )
           );
