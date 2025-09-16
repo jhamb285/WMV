@@ -6,40 +6,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Dummy filter options data (vibes, dates, genres still dummy)
-// const DUMMY_FILTER_OPTIONS = {
-  vibes: [
-    'Brunch/Day Party',
-    'Chill/Lounge',
-    'High Energy Nightclub',
-    'Live Music',
-    'Party/Energetic',
-    'Rooftop/Outdoor',
-    'Sports/Casual',
-    'Techno/Electronic'
-  ],
-  dates: [
-    'Sep 13, 2025 || Friday',
-    'Sep 14, 2025 || Saturday',
-    'Sep 15, 2025 || Sunday',
-    'Sep 20, 2025 || Friday',
-    'Sep 21, 2025 || Saturday',
-    'Sep 22, 2025 || Sunday',
-    'Sep 27, 2025 || Friday',
-    'Sep 28, 2025 || Saturday'
-  ],
-  genres: [
-    'Deep House',
-    'Electronic',
-    'Hip Hop',
-    'House',
-    'Jazz',
-    'Latin',
-    'Pop',
-    'Rock',
-    'Techno'
-  ]
-};
+// Dummy filter options data (vibes, dates, genres still dummy) - removed unused constant
 
 export async function GET(request: Request) {
   try {
