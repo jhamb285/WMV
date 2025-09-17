@@ -156,4 +156,44 @@
   .border-venue-rooftop\/30 { border-color: hsl(var(--venue-rooftop) / 0.3); }
   .border-venue-hotel\/30 { border-color: hsl(var(--venue-hotel) / 0.3); }
   .border-venue-default\/30 { border-color: hsl(var(--venue-default) / 0.3); }
+
+  /* Glassmorphism Effects */
+  .glassmorphism-popup {
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow:
+      0 25px 50px -12px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  }
+
+  .glassmorphism-card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  /* Popup Animation */
+  @keyframes popup-in {
+    0% {
+      opacity: 0;
+      transform: scale(0.9) translateY(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  .animate-popup-in {
+    animation: popup-in 0.3s ease-out forwards;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
 }

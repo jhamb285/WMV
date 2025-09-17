@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import MapContainer from '@/components/map/MapContainer';
+import WelcomePopup from '@/components/onboarding/WelcomePopup';
 import { type Venue, type FilterState } from '@/types';
 
 export default function Home() {
@@ -31,6 +32,7 @@ export default function Home() {
   const [venues, setVenues] = useState<Venue[]>([]);
   const [isLoading, setIsLoading] = useState(true); // Start as true for loading state
   const [error, setError] = useState<string | null>(null);
+  const [showWelcomePopup, setShowWelcomePopup] = useState(false);
 
   // Force execution on mount
   useEffect(() => {
@@ -133,6 +135,29 @@ export default function Home() {
     filters.searchQuery
   ]); // Re-run when any filter changes
 
+  // Welcome popup logic - show on first visit this session
+  useEffect(() => {
+    // Check if user has seen welcome popup this session
+    const hasSeenWelcome = sessionStorage.getItem('hasSeenWelcomePopup');
+
+    if (!hasSeenWelcome) {
+      // Show popup after a short delay once venues are loaded
+      if (!isLoading && venues.length > 0) {
+        const timer = setTimeout(() => {
+          setShowWelcomePopup(true);
+        }, 1000); // 1 second delay after venues load
+
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isLoading, venues.length]);
+
+  const handleCloseWelcomePopup = () => {
+    setShowWelcomePopup(false);
+    // Mark as seen for this session
+    sessionStorage.setItem('hasSeenWelcomePopup', 'true');
+  };
+
   const handleVenueSelect = (venue: Venue) => {
     console.log('📍 PAGE - handleVenueSelect called with:', venue.name);
   };
@@ -189,6 +214,12 @@ export default function Home() {
         onFiltersChange={handleFiltersChange}
         isLoading={isLoading}
         data-testid="map-container"
+      />
+
+      {/* Welcome Popup */}
+      <WelcomePopup
+        isOpen={showWelcomePopup}
+        onClose={handleCloseWelcomePopup}
       />
     </main>
   );
