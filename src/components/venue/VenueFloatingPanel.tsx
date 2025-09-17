@@ -176,7 +176,7 @@ const VenueFloatingPanel: React.FC<VenueFloatingPanelProps> = ({
                       /* Single Event - Full Width */
                       <div className="w-full">
                         {selectedDateEvents.map((event, index) => (
-                          <div key={event.event_id || `event-${index}`} className="bg-white/60 backdrop-blur-sm border border-gray-300/30 rounded-lg p-4 w-full
+                          <div key={event.id || `event-${index}`} className="bg-white/60 backdrop-blur-sm border border-gray-300/30 rounded-lg p-4 w-full
                                relative before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/10 before:to-gray-100/20 before:pointer-events-none before:rounded-lg">
                             <div className="flex items-start justify-between">
                               <div className="flex-1 min-w-0">
@@ -189,18 +189,18 @@ const VenueFloatingPanel: React.FC<VenueFloatingPanelProps> = ({
                                 )}
 
                                 {/* Music Genre */}
-                                {(event.music_genre || event.genre) && (
+                                {event.music_genre && (
                                   <div className="flex items-center gap-1.5 text-sm text-blue-600 mt-1">
                                     <Music className="h-4 w-4 flex-shrink-0" />
-                                    <span className="truncate">{event.music_genre || event.genre}</span>
+                                    <span className="truncate">{event.music_genre}</span>
                                   </div>
                                 )}
 
                                 {/* Event Vibe */}
-                                {(event.event_vibe || event.vibe) && (
+                                {event.event_vibe && (
                                   <div className="flex items-center gap-1.5 text-sm text-purple-600 mt-1">
                                     <Star className="h-4 w-4 flex-shrink-0" />
-                                    <span className="truncate">{event.event_vibe || event.vibe}</span>
+                                    <span className="truncate">{event.event_vibe}</span>
                                   </div>
                                 )}
 
@@ -213,12 +213,12 @@ const VenueFloatingPanel: React.FC<VenueFloatingPanelProps> = ({
                                 )}
 
                                 {/* Special Offers */}
-                                {(event.special_offers || event.entry_offer) && (
+                                {event.special_offers && (
                                   <div className="mt-1.5">
                                     <Badge className="bg-green-500/80 text-white text-sm">
-                                      {(event.special_offers || event.entry_offer).length > 30
-                                        ? `${(event.special_offers || event.entry_offer).substring(0, 30)}...`
-                                        : (event.special_offers || event.entry_offer)
+                                      {event.special_offers.length > 30
+                                        ? `${event.special_offers.substring(0, 30)}...`
+                                        : event.special_offers
                                       }
                                     </Badge>
                                   </div>
@@ -251,7 +251,7 @@ const VenueFloatingPanel: React.FC<VenueFloatingPanelProps> = ({
                             style={{ transform: `translateX(-${currentEventIndex * 100}%)` }}
                           >
                             {selectedDateEvents.map((event, index) => (
-                              <div key={event.event_id || `event-${index}`} className="w-full flex-shrink-0">
+                              <div key={event.id || `event-${index}`} className="w-full flex-shrink-0">
                                 <div className="bg-white/60 backdrop-blur-sm border border-gray-300/30 rounded-lg p-4 w-full
                                      relative before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/10 before:to-gray-100/20 before:pointer-events-none before:rounded-lg">
                                   <div className="flex items-start justify-between">
@@ -265,18 +265,18 @@ const VenueFloatingPanel: React.FC<VenueFloatingPanelProps> = ({
                                       )}
 
                                       {/* Music Genre */}
-                                      {(event.music_genre || event.genre) && (
+                                      {event.music_genre && (
                                         <div className="flex items-center gap-1.5 text-sm text-blue-600 mt-1">
                                           <Music className="h-4 w-4 flex-shrink-0" />
-                                          <span className="truncate">{event.music_genre || event.genre}</span>
+                                          <span className="truncate">{event.music_genre}</span>
                                         </div>
                                       )}
 
                                       {/* Event Vibe */}
-                                      {(event.event_vibe || event.vibe) && (
+                                      {event.event_vibe && (
                                         <div className="flex items-center gap-1.5 text-sm text-purple-600 mt-1">
                                           <Star className="h-4 w-4 flex-shrink-0" />
-                                          <span className="truncate">{event.event_vibe || event.vibe}</span>
+                                          <span className="truncate">{event.event_vibe}</span>
                                         </div>
                                       )}
 
@@ -289,12 +289,12 @@ const VenueFloatingPanel: React.FC<VenueFloatingPanelProps> = ({
                                       )}
 
                                       {/* Special Offers */}
-                                      {(event.special_offers || event.entry_offer) && (
+                                      {event.special_offers && (
                                         <div className="mt-1.5">
                                           <Badge className="bg-green-500/80 text-white text-sm">
-                                            {(event.special_offers || event.entry_offer).length > 30
-                                              ? `${(event.special_offers || event.entry_offer).substring(0, 30)}...`
-                                              : (event.special_offers || event.entry_offer)
+                                            {event.special_offers.length > 30
+                                              ? `${event.special_offers.substring(0, 30)}...`
+                                              : event.special_offers
                                             }
                                           </Badge>
                                         </div>
