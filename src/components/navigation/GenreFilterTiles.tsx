@@ -29,9 +29,6 @@ const GenreFilterTiles: React.FC<GenreFilterTilesProps> = ({
   // Show all available genres based on current filters
   const displayGenres = availableGenres;
 
-  // Debug: Log the number of genres
-  console.log('🎵 GenreFilterTiles - Total genres available:', displayGenres.length);
-  console.log('🎵 GenreFilterTiles - Genres list:', displayGenres);
 
   return (
     <div className="fixed top-22 left-0 right-0 z-40 px-4">
