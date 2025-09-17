@@ -34,10 +34,13 @@ export async function GET(request: Request) {
     if (dateParam) {
       // Split by comma first, then split by pipe for malformed concatenated strings
       const dateStrings = dateParam.split(',').flatMap(d => d.split('|')).filter(d => d && d.trim());
-      // Clean up each date string and only keep valid DD/Month/YYYY format
+      // Accept both "17 Sept 25" and "17/September/2025" formats
       activeDates = dateStrings
         .map(d => d.trim())
-        .filter(d => /^\d{2}\/[A-Za-z]+\/\d{4}$/.test(d)); // Only accept DD/Month/YYYY format
+        .filter(d => {
+          // Accept "DD/Month/YYYY" format or "DD Month YY" format
+          return /^\d{1,2}\/[A-Za-z]+\/\d{4}$/.test(d) || /^\d{1,2}\s[A-Za-z]+\s\d{2}$/.test(d);
+        });
     }
     const activeGenres = searchParams.get('genres')?.split(',').filter(g => g) || [];
     const activeOffers = searchParams.get('offers')?.split(',').filter(o => o) || [];
@@ -67,6 +70,7 @@ export async function GET(request: Request) {
       .not('venue_venue_id', 'is', null) // Only get records with venue data
       .not('venue_lat', 'is', null) // Must have coordinates for map
       .not('venue_lng', 'is', null)
+      .not('event_date', 'is', null) // Only get venues that have events
       .order('venue_name_original', { ascending: true });
 
     // Apply area filter
@@ -163,28 +167,43 @@ export async function GET(request: Request) {
             // Parse venue date from ISO format
             const venueDateObj = new Date(venueDate);
 
-            // Parse selected date from DD/Month/YYYY format
+            // Parse selected date - handle both "17 Sept 25" and "17/September/2025" formats
             const selectedDateStr = selectedDate.trim();
-            const [day, monthPart, year] = selectedDateStr.split('/');
+            let selectedDateObj: Date;
 
-            // Convert month name to month index
-            const monthNames = [
-              'January', 'February', 'March', 'April', 'May', 'June',
-              'July', 'August', 'September', 'October', 'November', 'December'
-            ];
-            const monthIndex = monthNames.findIndex(m => m.toLowerCase() === monthPart.toLowerCase());
-
-            if (monthIndex === -1) {
-              console.log('🗓️ ERROR - Invalid month name:', monthPart);
-              return false;
+            if (selectedDateStr.includes('/')) {
+              // Old format: "17/September/2025"
+              const [day, monthPart, year] = selectedDateStr.split('/');
+              const monthNames = [
+                'January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'
+              ];
+              const monthIndex = monthNames.findIndex(m => m.toLowerCase() === monthPart.toLowerCase());
+              if (monthIndex === -1) {
+                console.log('🗓️ ERROR - Invalid month name:', monthPart);
+                return false;
+              }
+              selectedDateObj = new Date(parseInt(year), monthIndex, parseInt(day));
+            } else {
+              // New format: "17 Sept 25"
+              const [day, monthPart, year] = selectedDateStr.split(' ');
+              const monthNames = [
+                'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'
+              ];
+              const monthIndex = monthNames.findIndex(m => m.toLowerCase() === monthPart.toLowerCase());
+              if (monthIndex === -1) {
+                console.log('🗓️ ERROR - Invalid month name:', monthPart);
+                return false;
+              }
+              // Handle 2-digit year
+              const fullYear = parseInt(year) < 50 ? 2000 + parseInt(year) : 1900 + parseInt(year);
+              selectedDateObj = new Date(fullYear, monthIndex, parseInt(day));
             }
 
-            // Create date object for selected date (month is 0-indexed in JS)
-            const selectedDateObj = new Date(parseInt(year), monthIndex, parseInt(day));
-
             if (!isNaN(venueDateObj.getTime()) && !isNaN(selectedDateObj.getTime())) {
-              // Compare just the date parts (year, month, day)
-              const venueDateOnly = new Date(venueDateObj.getFullYear(), venueDateObj.getMonth(), venueDateObj.getDate());
+              // Compare just the date parts (year, month, day) - use UTC to avoid timezone issues
+              const venueDateOnly = new Date(venueDateObj.getUTCFullYear(), venueDateObj.getUTCMonth(), venueDateObj.getUTCDate());
               const selectedDateOnly = new Date(selectedDateObj.getFullYear(), selectedDateObj.getMonth(), selectedDateObj.getDate());
 
               const match = venueDateOnly.getTime() === selectedDateOnly.getTime();

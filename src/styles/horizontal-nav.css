@@ -4,15 +4,15 @@
   align-items: center;
   justify-content: center;
   gap: 0px;
-  
+
   /* Lighter background for better visibility */
   background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  
-  /* More compact pill shape */
+
+  /* Smaller pill shape */
   border-radius: 50px;
-  padding: 12px 24px 12px 24px;
+  padding: 8px 16px 8px 16px;
   
   /* Enhanced shadow and border */
   box-shadow: 
@@ -44,10 +44,10 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  
-  /* More compact circles */
-  width: 52px;
-  height: 52px;
+
+  /* Smaller circles to match logo */
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   
   /* Darker gray background for better contrast */
@@ -241,10 +241,82 @@
   }
 }
 
+/* Filter Bottom Sheet Dark Glassmorphism */
+.filter-bottom-sheet {
+  min-height: 65vh;
+  max-height: 65vh;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(40px) saturate(1.8);
+  -webkit-backdrop-filter: blur(40px) saturate(1.8);
+
+  /* Enhanced shadows for glassmorphism */
+  box-shadow:
+    0 -20px 60px rgba(0, 0, 0, 0.3),
+    0 -8px 32px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-bottom: none;
+
+  /* Force hardware acceleration */
+  will-change: transform, backdrop-filter;
+  transform: translateZ(0);
+}
+
+/* Filter Section Dark Styling */
+.filter-section {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 0px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Enhanced dark scrollbar for filter content */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Hide scrollbar for genre tiles */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Performance optimizations */
 .glass-nav-pill,
 .nav-circle,
-.dark-glass-popup {
+.dark-glass-popup,
+.filter-bottom-sheet,
+.filter-section {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

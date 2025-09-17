@@ -2,15 +2,20 @@
 
 import React, { useCallback, useRef, useState } from 'react';
 import { GoogleMap, useLoadScript } from '@react-google-maps/api';
-import { 
-  GOOGLE_MAPS_CONFIG, 
+import { SlidersHorizontal } from 'lucide-react';
+import {
+  GOOGLE_MAPS_CONFIG,
   MAP_OPTIONS
 } from '@/lib/maps-config';
 // Removed VenueClusterComponent import
 import HorizontalNav from '@/components/navigation/HorizontalNav';
 import TopNav from '@/components/navigation/TopNav';
+import GenreFilterTiles from '@/components/navigation/GenreFilterTiles';
 import VenueDetailsSidebar from '@/components/venue/VenueDetailsSidebar';
+import VenueFloatingPanel from '@/components/venue/VenueFloatingPanel';
+import FilterBottomSheet from '@/components/filters/FilterBottomSheet';
 import type { MapContainerProps, FilterState, Venue } from '@/types';
+import { useFilterOptions } from '@/hooks/useFilterOptions';
 import '@/styles/horizontal-nav.css';
 
 interface ExtendedMapContainerProps extends MapContainerProps {
@@ -45,7 +50,12 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
   });
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isFloatingPanelOpen, setIsFloatingPanelOpen] = useState(false);
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [mapOptions, setMapOptions] = useState<google.maps.MapOptions | null>(null);
+
+  // Get filter options for genre tiles
+  const { filterOptions } = useFilterOptions(filters);
 
   // Clear all existing markers
   const clearMarkers = useCallback(() => {
@@ -57,20 +67,18 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
     console.log('✅ All markers cleared');
   }, []);
 
+
   const handleVenueClick = useCallback((venue: Venue) => {
     console.log('🚀 MAP CONTAINER - handleVenueClick called with:', venue.name);
-    console.log('🚀 MAP CONTAINER - onVenueSelect function:', onVenueSelect);
-    console.log('🚀 MAP CONTAINER - Current isSidebarOpen:', isSidebarOpen);
     console.log('🚀 MAP CONTAINER - Setting selectedVenue to:', venue);
     setSelectedVenue(venue);
-    console.log('🚀 MAP CONTAINER - selectedVenue set, continuing...');
     onVenueSelect(venue);
-    console.log('🚀 MAP CONTAINER - onVenueSelect called, setting sidebar to open...');
-    setIsSidebarOpen(true);
-    console.log('🚀 MAP CONTAINER - Setting sidebar to open - COMPLETE');
-  }, [onVenueSelect, isSidebarOpen]);
+    console.log('🚀 MAP CONTAINER - Opening floating panel...');
+    setIsFloatingPanelOpen(true);
+    console.log('🚀 MAP CONTAINER - Floating panel opened - COMPLETE');
+  }, [onVenueSelect]);
 
-  const onMapLoad = useCallback(async (map: google.maps.Map) => {
+  const onMapLoad = useCallback((map: google.maps.Map) => {
     console.log('🚀 === MAP LOAD START ===');
     console.log('🗺️ Map object:', map);
     console.log('🗺️ Venues received:', venues);
@@ -78,7 +86,7 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
     console.log('🗺️ Venues array type:', typeof venues);
     console.log('🗺️ Venues is array:', Array.isArray(venues));
     console.log('🗺️ isLoading state:', isLoading);
-    
+
     mapRef.current = map;
     
     // Store initial viewport and mark as initialized
@@ -120,7 +128,7 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
       // Create individual markers without clustering
       const validVenues = venues.filter(venue => venue.lat && venue.lng);
       console.log(`🗺️ TOTAL VENUES: ${venues.length}, VALID VENUES: ${validVenues.length}`);
-      
+
       // Log each venue's details
       venues.forEach((venue, i) => {
         console.log(`📍 Venue ${i + 1}:`, {
@@ -131,21 +139,21 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
           hasCoords: !!(venue.lat && venue.lng)
         });
       });
-      
+
       if (validVenues.length === 0) {
         console.error('❌ NO VALID VENUES FOUND - no markers will be created!');
         return;
       }
-      
+
       validVenues.forEach((venue, i) => {
         console.log(`🎯 === CREATING MARKER ${i + 1} ===`);
         console.log(`🎯 Venue: ${venue.name}`);
         console.log(`🎯 Position: lat=${venue.lat}, lng=${venue.lng}`);
-        
+
         // Smart category-based color mapping
         const getCategoryColor = (category: string) => {
           const lowerCategory = category.toLowerCase();
-          
+
           if (lowerCategory.includes('bar') && (lowerCategory.includes('sports') || lowerCategory.includes('pub'))) {
             return 'orange'; // Sports bars/pubs
           } else if (lowerCategory.includes('bar') || lowerCategory.includes('lounge')) {
@@ -160,10 +168,10 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
             return 'red'; // Default/other
           }
         };
-        
+
         const categoryColor = getCategoryColor(venue.category || '');
         console.log(`🎯 Venue: ${venue.name}, Category: ${venue.category}, Color: ${categoryColor}`);
-        
+
         try {
           // Create CUSTOM COLORED marker based on category
           console.log(`🎨 Creating CUSTOM marker for ${venue.name} (${categoryColor})`);
@@ -176,31 +184,31 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
               scaledSize: new google.maps.Size(32, 32),
             },
           });
-          
+
           // Add marker to tracking array
           markersRef.current.push(marker);
-          
+
           console.log(`✅ Marker created successfully for ${venue.name}:`, marker.getPosition()?.toJSON());
           console.log(`✅ Marker visible:`, marker.getVisible());
           console.log(`✅ Marker map:`, marker.getMap());
-          
+
           marker.addListener("click", (event: google.maps.MapMouseEvent) => {
             console.log(`🖱️ Marker clicked: ${venue.name}`);
             // Prevent event bubbling that might cause map repositioning
             if (event) {
               event.stop?.();
             }
-            
+
             // Close any existing InfoWindow first
             if (currentInfoWindow) {
               currentInfoWindow.close();
               currentInfoWindow = null;
             }
-            
+
             // Only trigger sidebar functionality - no InfoWindow popup
             handleVenueClick(venue);
           });
-          
+
         } catch (markerError) {
           console.error(`❌ Error creating marker for ${venue.name}:`, markerError);
         }
@@ -266,9 +274,15 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
     setIsSidebarOpen(false);
     setSelectedVenue(null); // Clear selected venue when closing
     console.log('🚀 MAP CONTAINER - Sidebar closed, selectedVenue cleared');
-    
+
     // DON'T reset map position - let it stay where user left it!
     console.log('🗺️ Preserving viewport:', mapViewportRef.current);
+  }, []);
+
+  const handleFloatingPanelClose = useCallback(() => {
+    setIsFloatingPanelOpen(false);
+    setSelectedVenue(null); // Clear selected venue when closing
+    console.log('🚀 MAP CONTAINER - Floating panel closed, selectedVenue cleared');
   }, []);
 
   // Initialize mapOptions only once to prevent re-renders from resetting the map
@@ -456,13 +470,36 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
 
   return (
     <div className="relative h-screen w-full" data-testid={dataTestId}>
-      {/* Simple Top Navigation with Logo */}
-      <TopNav />
-      
-      {/* Bottom Glass Navigation with Filter Functionality */}
-      <HorizontalNav 
+
+      {/* Top Navigation with Logo and Simple Filter Button */}
+      <TopNav
+        navButtons={
+          <>
+            <button
+              onClick={() => {
+                setIsFilterSheetOpen(true);
+                setIsFloatingPanelOpen(false);
+              }}
+              className={`nav-circle ${
+                (!filters.selectedAreas.includes('All Dubai') || filters.selectedAreas.length > 1) ||
+                filters.activeVibes.length > 0 ||
+                (filters.activeDates?.length || 0) > 0 ||
+                filters.activeGenres.length > 0
+                  ? 'nav-has-filters'
+                  : ''
+              }`}
+            >
+              <SlidersHorizontal size={18} className="nav-icon" strokeWidth={1.5} />
+            </button>
+          </>
+        }
+      />
+
+      {/* Genre Filter Tiles below logo */}
+      <GenreFilterTiles
         filters={filters}
         onFiltersChange={onFiltersChange}
+        availableGenres={filterOptions.genres}
       />
 
       {/* Only render GoogleMap after mapOptions is initialized to prevent viewport resets */}
@@ -516,6 +553,32 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
         isOpen={isSidebarOpen}
         onClose={handleSidebarClose}
         filters={filters}
+      />
+
+      {/* Venue Floating Panel */}
+      <VenueFloatingPanel
+        venue={selectedVenue}
+        isOpen={isFloatingPanelOpen}
+        onClose={handleFloatingPanelClose}
+        filters={filters}
+        onViewDetails={() => {
+          setIsFloatingPanelOpen(false);
+          setIsSidebarOpen(true);
+        }}
+      />
+
+      {/* Filter Bottom Sheet */}
+      <FilterBottomSheet
+        isOpen={isFilterSheetOpen}
+        onClose={() => setIsFilterSheetOpen(false)}
+        filters={filters}
+        onFiltersChange={onFiltersChange}
+        filterOptions={{
+          areas: filterOptions?.areas || [],
+          vibes: filterOptions?.vibes || [],
+          dates: filterOptions?.dates || [],
+          genres: filterOptions?.genres || []
+        }}
       />
 
     </div>

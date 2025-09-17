@@ -111,19 +111,31 @@ export async function GET(request: Request) {
 
         return dateList.some((selectedDate: string) => {
           try {
-            // Parse the selected date format (DD/Month/YYYY from filter-options API)
-            const [day, monthName, year] = selectedDate.split('/');
-            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                              'July', 'August', 'September', 'October', 'November', 'December'];
-            const monthIndex = monthNames.findIndex(m => m.toLowerCase() === monthName.toLowerCase());
+            // Handle both date formats: "17 Sept 25" and "17/September/2025"
+            let selectedDateObj: Date;
 
-            if (monthIndex === -1) return false;
-
-            const selectedDateObj = new Date(parseInt(year), monthIndex, parseInt(day));
+            if (selectedDate.includes('/')) {
+              // Old format: "17/September/2025"
+              const [day, monthName, year] = selectedDate.split('/');
+              const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                                'July', 'August', 'September', 'October', 'November', 'December'];
+              const monthIndex = monthNames.findIndex(m => m.toLowerCase() === monthName.toLowerCase());
+              if (monthIndex === -1) return false;
+              selectedDateObj = new Date(parseInt(year), monthIndex, parseInt(day));
+            } else {
+              // New format: "17 Sept 25"
+              const [day, monthPart, year] = selectedDate.split(' ');
+              const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                                'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
+              const monthIndex = monthNames.findIndex(m => m.toLowerCase() === monthPart.toLowerCase());
+              if (monthIndex === -1) return false;
+              const fullYear = parseInt(year) < 50 ? 2000 + parseInt(year) : 1900 + parseInt(year);
+              selectedDateObj = new Date(fullYear, monthIndex, parseInt(day));
+            }
             if (isNaN(selectedDateObj.getTime())) return false;
 
-            // Compare dates (ignoring time)
-            const eventDateOnly = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+            // Compare dates (ignoring time) - use UTC to avoid timezone issues
+            const eventDateOnly = new Date(eventDate.getUTCFullYear(), eventDate.getUTCMonth(), eventDate.getUTCDate());
             const selectedDateOnly = new Date(selectedDateObj.getFullYear(), selectedDateObj.getMonth(), selectedDateObj.getDate());
 
             return eventDateOnly.getTime() === selectedDateOnly.getTime();

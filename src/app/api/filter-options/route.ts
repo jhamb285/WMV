@@ -86,14 +86,30 @@ export async function GET(request: Request) {
             try {
               const venueDateObj = new Date(venueDate);
               const selectedDateStr = selectedDate.trim();
-              const [day, monthPart, year] = selectedDateStr.split('/');
-              const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                                'July', 'August', 'September', 'October', 'November', 'December'];
-              const monthIndex = monthNames.findIndex(m => m.toLowerCase() === monthPart.toLowerCase());
-              if (monthIndex === -1) return false;
-              const selectedDateObj = new Date(parseInt(year), monthIndex, parseInt(day));
+              let selectedDateObj: Date;
+
+              if (selectedDateStr.includes('/')) {
+                // Old format: "17/September/2025"
+                const [day, monthPart, year] = selectedDateStr.split('/');
+                const monthNames = [
+                  'January', 'February', 'March', 'April', 'May', 'June',
+                  'July', 'August', 'September', 'October', 'November', 'December'
+                ];
+                const monthIndex = monthNames.findIndex(m => m.toLowerCase() === monthPart.toLowerCase());
+                if (monthIndex === -1) return false;
+                selectedDateObj = new Date(parseInt(year), monthIndex, parseInt(day));
+              } else {
+                // New format: "17 Sept 25"
+                const [day, monthPart, year] = selectedDateStr.split(' ');
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                                  'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
+                const monthIndex = monthNames.findIndex(m => m.toLowerCase() === monthPart.toLowerCase());
+                if (monthIndex === -1) return false;
+                const fullYear = parseInt(year) < 50 ? 2000 + parseInt(year) : 1900 + parseInt(year);
+                selectedDateObj = new Date(fullYear, monthIndex, parseInt(day));
+              }
               if (!isNaN(venueDateObj.getTime()) && !isNaN(selectedDateObj.getTime())) {
-                const venueDateOnly = new Date(venueDateObj.getFullYear(), venueDateObj.getMonth(), venueDateObj.getDate());
+                const venueDateOnly = new Date(venueDateObj.getUTCFullYear(), venueDateObj.getUTCMonth(), venueDateObj.getUTCDate());
                 const selectedDateOnly = new Date(selectedDateObj.getFullYear(), selectedDateObj.getMonth(), selectedDateObj.getDate());
                 return venueDateOnly.getTime() === selectedDateOnly.getTime();
               }
@@ -140,39 +156,38 @@ export async function GET(request: Request) {
       )
     )].sort();
 
-    // Dates: exclude date filter, apply others
-    const dateFilteredData = getFilteredDataExcluding('dates');
-    const dateObjects = dateFilteredData?.map(record => record.event_date)
-      .filter(date => date && date.toString().trim())
-      .map(date => {
-        try {
-          const dateObj = new Date(date);
-          if (!isNaN(dateObj.getTime())) {
-            return dateObj;
-          }
-        } catch {
-          // If date parsing fails, skip this date
-        }
-        return null;
-      })
-      .filter(date => date !== null) || [];
+    // Generate date range: yesterday, today, next 5 days (7 days total)
+    const generateDateRange = () => {
+      const dates = [];
+      const today = new Date();
 
-    // Sort dates chronologically (earliest to latest) and format
-    const uniqueDates = [...new Set(
-      dateObjects
-        .sort((a, b) => a.getTime() - b.getTime()) // Sort chronologically
-        .map(dateObj => {
-          // Format as DD/Month/YYYY
-          const day = dateObj.getDate().toString().padStart(2, '0');
-          const monthNames = [
-            'January', 'February', 'March', 'April', 'May', 'June',
-            'July', 'August', 'September', 'October', 'November', 'December'
-          ];
-          const month = monthNames[dateObj.getMonth()];
-          const year = dateObj.getFullYear();
-          return `${day}/${month}/${year}`;
-        })
-    )];
+      // Yesterday
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      dates.push(yesterday);
+
+      // Today
+      dates.push(new Date(today));
+
+      // Next 5 days
+      for (let i = 1; i <= 5; i++) {
+        const futureDate = new Date(today);
+        futureDate.setDate(futureDate.getDate() + i);
+        dates.push(futureDate);
+      }
+
+      return dates.map(dateObj => {
+        // Format as "17 Sept 25"
+        const day = dateObj.getDate();
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                           'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
+        const month = monthNames[dateObj.getMonth()];
+        const year = dateObj.getFullYear().toString().slice(-2); // Last 2 digits
+        return `${day} ${month} ${year}`;
+      });
+    };
+
+    const uniqueDates = generateDateRange();
 
     // Genres: exclude genre filter, apply others
     const genreFilteredData = getFilteredDataExcluding('genres');

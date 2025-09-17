@@ -11,12 +11,12 @@ export default function Home() {
   // Get today's date in DD/Month/YYYY format
   const getTodayDateString = () => {
     const today = new Date();
-    const day = today.getDate().toString().padStart(2, '0');
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                       'July', 'August', 'September', 'October', 'November', 'December'];
+    const day = today.getDate();
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                       'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
     const month = monthNames[today.getMonth()];
-    const year = today.getFullYear();
-    return `${day}/${month}/${year}`;
+    const year = today.getFullYear().toString().slice(-2); // Last 2 digits
+    return `${day} ${month} ${year}`;
   };
 
   const [filters, setFilters] = useState<FilterState>({
@@ -56,7 +56,7 @@ export default function Home() {
           searchParams.set('vibes', filters.activeVibes.join(','));
         }
         if (filters.activeDates?.length) {
-          searchParams.set('dates', filters.activeDates.join('|'));
+          searchParams.set('dates', filters.activeDates.join(','));
         }
         if (filters.activeGenres?.length) {
           searchParams.set('genres', filters.activeGenres.join(','));

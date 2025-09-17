@@ -3,20 +3,29 @@
 import React from 'react';
 import Image from 'next/image';
 
-const TopNav: React.FC = () => {
+interface TopNavProps {
+  navButtons?: React.ReactNode;
+}
+
+const TopNav: React.FC<TopNavProps> = ({ navButtons }) => {
   return (
-    <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
-      <div className="bg-black/20 backdrop-blur-lg rounded-full px-6 py-3 shadow-lg border border-white/10">
-        <div className="flex flex-col items-center justify-center">
-          <Image 
-            src="/logo_clean.svg" 
-            alt="WMV Logo" 
-            width={144}
-            height={72}
-            className="w-36 h-18 object-contain"
-          />
-          <span className="text-white text-xs font-bold -mt-1" style={{ fontFamily: 'Courier New, monospace' }}>Where&apos;s My Vibe?</span>
-        </div>
+    <div className="fixed top-4 left-4 right-4 z-50">
+      <div className="bg-white/60 backdrop-blur-xl rounded-full px-3 py-1 shadow-xl border border-white/60 flex items-center justify-between
+                     before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/40 before:to-white/20 before:pointer-events-none before:rounded-full
+                     after:absolute after:inset-0 after:bg-gradient-to-t after:from-transparent after:via-white/10 after:to-white/20 after:pointer-events-none after:rounded-full
+                     relative">
+        <Image
+          src="/logo_clean.svg"
+          alt="WMV Logo"
+          width={64}
+          height={32}
+          className="w-16 h-8 object-contain opacity-50"
+        />
+        {navButtons && (
+          <div className="flex items-center gap-2">
+            {navButtons}
+          </div>
+        )}
       </div>
     </div>
   );
