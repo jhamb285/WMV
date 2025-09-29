@@ -2,7 +2,7 @@
 
 import React, { useCallback, useRef, useState } from 'react';
 import { GoogleMap, useLoadScript } from '@react-google-maps/api';
-import { SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal, Calendar } from 'lucide-react';
 import {
   GOOGLE_MAPS_CONFIG,
   MAP_OPTIONS
@@ -10,11 +10,11 @@ import {
 // Removed VenueClusterComponent import
 import HorizontalNav from '@/components/navigation/HorizontalNav';
 import TopNav from '@/components/navigation/TopNav';
-import GenreFilterTiles from '@/components/navigation/GenreFilterTiles';
+import HierarchicalFilterContainer from '@/components/filters/HierarchicalFilterContainer';
 import VenueDetailsSidebar from '@/components/venue/VenueDetailsSidebar';
 import VenueFloatingPanel from '@/components/venue/VenueFloatingPanel';
 import FilterBottomSheet from '@/components/filters/FilterBottomSheet';
-import type { MapContainerProps, FilterState, Venue } from '@/types';
+import type { MapContainerProps, FilterState, Venue, HierarchicalFilterState, FilterOptions } from '@/types';
 import { useFilterOptions } from '@/hooks/useFilterOptions';
 import '@/styles/horizontal-nav.css';
 
@@ -33,6 +33,44 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
   onFiltersChange,
   'data-testid': dataTestId,
 }) => {
+  // Convert FilterState to HierarchicalFilterState
+  const convertToHierarchical = (filterState: FilterState): HierarchicalFilterState => {
+    return {
+      selectedPrimaries: {
+        genres: filterState.activeGenres,
+        vibes: filterState.activeVibes
+      },
+      selectedSecondaries: {
+        genres: {},
+        vibes: {}
+      },
+      expandedPrimaries: {
+        genres: filterState.activeGenres,
+        vibes: filterState.activeVibes
+      },
+      selectedAreas: filterState.selectedAreas,
+      activeDates: filterState.activeDates,
+      activeOffers: filterState.activeOffers,
+      searchQuery: filterState.searchQuery
+    };
+  };
+
+  // Convert HierarchicalFilterState back to FilterState
+  const convertFromHierarchical = (hierarchicalState: HierarchicalFilterState): FilterState => {
+    return {
+      selectedAreas: hierarchicalState.selectedAreas,
+      activeVibes: hierarchicalState.selectedPrimaries.vibes,
+      activeDates: hierarchicalState.activeDates,
+      activeGenres: hierarchicalState.selectedPrimaries.genres,
+      activeOffers: hierarchicalState.activeOffers,
+      searchQuery: hierarchicalState.searchQuery
+    };
+  };
+
+  const handleHierarchicalFiltersChange = (hierarchicalFilters: HierarchicalFilterState) => {
+    const convertedFilters = convertFromHierarchical(hierarchicalFilters);
+    onFiltersChange(convertedFilters);
+  };
   // Use useLoadScript to load Google Maps - MUST be at the top before any conditionals
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: GOOGLE_MAPS_CONFIG.apiKey,
@@ -54,8 +92,9 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [mapOptions, setMapOptions] = useState<google.maps.MapOptions | null>(null);
 
-  // Get filter options for genre tiles
-  const { filterOptions } = useFilterOptions(filters);
+  // Get filter options (loaded once, no parameters needed)
+  const { filterOptions } = useFilterOptions();
+
 
   // Clear all existing markers
   const clearMarkers = useCallback(() => {
@@ -156,8 +195,10 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
 
           if (lowerCategory.includes('bar') && (lowerCategory.includes('sports') || lowerCategory.includes('pub'))) {
             return 'orange'; // Sports bars/pubs
-          } else if (lowerCategory.includes('bar') || lowerCategory.includes('lounge')) {
-            return 'purple'; // Bars/lounges
+          } else if (lowerCategory.includes('lounge')) {
+            return 'purple'; // Lounges
+          } else if (lowerCategory.includes('bar')) {
+            return 'pink'; // Bars
           } else if (lowerCategory.includes('beach') || lowerCategory.includes('club')) {
             return 'blue'; // Beach clubs
           } else if (lowerCategory.includes('restaurant') || lowerCategory.includes('cafe')) {
@@ -285,15 +326,9 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
     console.log('🚀 MAP CONTAINER - Floating panel closed, selectedVenue cleared');
   }, []);
 
-  // Initialize mapOptions only once to prevent re-renders from resetting the map
+  // Initialize mapOptions and update when theme changes
   React.useEffect(() => {
-    if (!mapOptions) {
-      const initialMapOptions: google.maps.MapOptions = {
-        ...MAP_OPTIONS,
-        center: mapViewportRef.current.center,
-        zoom: mapViewportRef.current.zoom,
-        // mapId removed - this was blocking POI hiding styles
-        styles: [
+    const lightStyles = [
       // Retro styling with POI hiding
       { elementType: "geometry", stylers: [{ color: "#ebe3cd" }] },
       { elementType: "labels.text.fill", stylers: [{ color: "#523735" }] },
@@ -414,13 +449,21 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
         elementType: "labels.text.fill",
         stylers: [{ color: "#92998d" }],
       },
-    ]
-      };
-      
-      setMapOptions(initialMapOptions);
-      console.log('🗺️ Map options initialized once to prevent viewport resets');
-    }
-  }, []); // Empty dependency array - only run once
+    ];
+
+
+    const mapStyles = lightStyles;
+
+    const newMapOptions: google.maps.MapOptions = {
+      ...MAP_OPTIONS,
+      center: mapViewportRef.current.center,
+      zoom: mapViewportRef.current.zoom,
+      styles: mapStyles
+    };
+
+    setMapOptions(newMapOptions);
+    console.log('🗺️ Map options updated');
+  }, []); // Initialize once
 
   // Debug API key loading
   console.log('Google Maps API Key:', GOOGLE_MAPS_CONFIG.apiKey ? 'PRESENT' : 'MISSING');
@@ -481,13 +524,27 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
                 setIsFloatingPanelOpen(false);
               }}
               className={`nav-circle ${
+                (filters.activeDates?.length || 0) > 1
+                  ? 'nav-has-filters'
+                  : ''
+              }`}
+              title="Date Filter"
+            >
+              <Calendar size={18} className="nav-icon" strokeWidth={1.5} />
+            </button>
+            <button
+              onClick={() => {
+                setIsFilterSheetOpen(true);
+                setIsFloatingPanelOpen(false);
+              }}
+              className={`nav-circle ${
                 (!filters.selectedAreas.includes('All Dubai') || filters.selectedAreas.length > 1) ||
                 filters.activeVibes.length > 0 ||
-                (filters.activeDates?.length || 0) > 0 ||
                 filters.activeGenres.length > 0
                   ? 'nav-has-filters'
                   : ''
               }`}
+              title="More Filters"
             >
               <SlidersHorizontal size={18} className="nav-icon" strokeWidth={1.5} />
             </button>
@@ -495,11 +552,11 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
         }
       />
 
-      {/* Genre Filter Tiles below logo */}
-      <GenreFilterTiles
-        filters={filters}
-        onFiltersChange={onFiltersChange}
-        availableGenres={filterOptions.genres}
+      {/* Hierarchical Filter Container below logo */}
+      <HierarchicalFilterContainer
+        filters={convertToHierarchical(filters)}
+        onFiltersChange={handleHierarchicalFiltersChange}
+        filterOptions={filterOptions as FilterOptions}
       />
 
       {/* Only render GoogleMap after mapOptions is initialized to prevent viewport resets */}

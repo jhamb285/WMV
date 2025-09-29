@@ -7,6 +7,7 @@ interface FilterRecord {
   event_vibe?: string[];
   event_date?: string;
   music_genre?: string[];
+  venue_category?: string;
   id?: number;
   venue_name?: string;
 }
@@ -21,20 +22,20 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
 
-    // Parse current filter state to provide contextual options
-    const selectedAreas = searchParams.get('areas')?.split(',').filter(a => a && a !== 'All Dubai') || [];
-    const activeVibes = searchParams.get('vibes')?.split(',').filter(v => v) || [];
-    const activeDates = searchParams.get('dates')?.split(',').filter(d => d) || [];
-    const activeGenres = searchParams.get('genres')?.split(',').filter(g => g) || [];
+    // TEMPORARY: Ignore all parameters for client-side filtering
+    // TODO: Remove this once all old API calls are eliminated
+    console.log('🔄 Fetching ALL filter options (ignoring parameters for client-side filtering)');
 
-    console.log('🔍 Fetching DYNAMIC filter options based on current filters:', {
-      selectedAreas, activeVibes, activeDates, activeGenres
-    });
+    // Force parameters to empty for client-side filtering
+    const selectedAreas: string[] = [];
+    const activeVibes: string[] = [];
+    const activeDates: string[] = [];
+    const activeGenres: string[] = [];
 
-    // Get base data without any filters
+    // Get base data without any filters - fallback to old columns
     const { data, error } = await supabase
       .from('final_1')
-      .select('venue_area, event_vibe, event_date, music_genre')
+      .select('venue_area, event_vibe, event_date, music_genre, venue_category')
       .not('venue_area', 'is', null)
       .not('venue_area', 'eq', '');
 
@@ -144,9 +145,29 @@ export async function GET(request: Request) {
       areaFilteredData?.map(record => record.venue_area).filter(area => area && area.trim())
     )].sort();
 
-    // Vibes: exclude vibe filter, apply others
+    // Use simulated hierarchical structure for now (can be replaced with processed JSON later)
+    const hierarchicalGenres = {
+      "Electronic": {
+        color: "purple",
+        subcategories: ["Techno", "Deep House", "Melodic House", "Tech House", "Progressive"]
+      },
+      "Hip-Hop": {
+        color: "blue",
+        subcategories: ["Rap", "R&B", "Urban"]
+      },
+      "Live Music": {
+        color: "green",
+        subcategories: ["Jazz", "Rock", "Acoustic", "Band"]
+      },
+      "Mixed": {
+        color: "gray",
+        subcategories: ["Various", "Multi-Genre"]
+      }
+    };
+
+    // Extract flat vibes from existing data to simulate hierarchical structure
     const vibeFilteredData = getFilteredDataExcluding('vibes');
-    const uniqueVibes = [...new Set(
+    const flatVibes = [...new Set(
       vibeFilteredData?.flatMap((record: FilterRecord) =>
         Array.isArray(record.event_vibe)
           ? record.event_vibe
@@ -154,67 +175,103 @@ export async function GET(request: Request) {
               .flatMap(vibe => vibe.split('|').map((tag: string) => tag.trim()).filter((tag: string) => tag))
           : []
       )
-    )].sort();
+    )];
 
-    // Generate date range: yesterday, today, next 5 days (7 days total)
-    const generateDateRange = () => {
-      const dates = [];
-      const today = new Date();
-
-      // Yesterday
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
-      dates.push(yesterday);
-
-      // Today
-      dates.push(new Date(today));
-
-      // Next 5 days
-      for (let i = 1; i <= 5; i++) {
-        const futureDate = new Date(today);
-        futureDate.setDate(futureDate.getDate() + i);
-        dates.push(futureDate);
+    const hierarchicalVibes = {
+      "Energy": {
+        color: "orange",
+        subcategories: flatVibes.filter(vibe =>
+          vibe.toLowerCase().includes('high energy') ||
+          vibe.toLowerCase().includes('nightclub') ||
+          vibe.toLowerCase().includes('packed')
+        ).slice(0, 5)
+      },
+      "Atmosphere": {
+        color: "teal",
+        subcategories: flatVibes.filter(vibe =>
+          vibe.toLowerCase().includes('open-air') ||
+          vibe.toLowerCase().includes('rooftop') ||
+          vibe.toLowerCase().includes('lounge') ||
+          vibe.toLowerCase().includes('intimate')
+        ).slice(0, 5)
+      },
+      "Event Type": {
+        color: "pink",
+        subcategories: flatVibes.filter(vibe =>
+          vibe.toLowerCase().includes('brunch') ||
+          vibe.toLowerCase().includes('vip') ||
+          vibe.toLowerCase().includes('beach')
+        ).slice(0, 5)
+      },
+      "Music Style": {
+        color: "indigo",
+        subcategories: flatVibes.filter(vibe =>
+          vibe.toLowerCase().includes('techno') ||
+          vibe.toLowerCase().includes('house') ||
+          vibe.toLowerCase().includes('hip-hop') ||
+          vibe.toLowerCase().includes('live')
+        ).slice(0, 5)
       }
-
-      return dates.map(dateObj => {
-        // Format as "17 Sept 25"
-        const day = dateObj.getDate();
-        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                           'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
-        const month = monthNames[dateObj.getMonth()];
-        const year = dateObj.getFullYear().toString().slice(-2); // Last 2 digits
-        return `${day} ${month} ${year}`;
-      });
     };
 
-    const uniqueDates = generateDateRange();
+    // Get all unique dates from database (historical and future)
+    const dateFilteredData = getFilteredDataExcluding('dates');
+    const uniqueDates = [...new Set(
+      dateFilteredData?.map((record: FilterRecord) => {
+        if (!record.event_date) return null;
 
-    // Genres: exclude genre filter, apply others
-    const genreFilteredData = getFilteredDataExcluding('genres');
-    const uniqueGenres = [...new Set(
-      genreFilteredData?.flatMap((record: FilterRecord) =>
-        Array.isArray(record.music_genre)
-          ? record.music_genre
-              .filter((genre: string) => genre && genre.trim())
-              .flatMap(genre => genre.split('|').map((tag: string) => tag.trim()).filter((tag: string) => tag))
-          : []
-      )
-    )].sort();
+        try {
+          const eventDate = new Date(record.event_date);
+          if (isNaN(eventDate.getTime())) return null;
+
+          // Format as "17 Sept 25"
+          const day = eventDate.getUTCDate();
+          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                             'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
+          const month = monthNames[eventDate.getUTCMonth()];
+          const year = eventDate.getUTCFullYear().toString().slice(-2); // Last 2 digits
+          return `${day} ${month} ${year}`;
+        } catch {
+          return null;
+        }
+      }).filter(date => date !== null)
+    )].sort((a, b) => {
+      // Sort dates chronologically
+      try {
+        const parseDate = (dateStr: string) => {
+          const [day, monthPart, year] = dateStr.split(' ');
+          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                             'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
+          const monthIndex = monthNames.findIndex(m => m.toLowerCase() === monthPart.toLowerCase());
+          const fullYear = parseInt(year) < 50 ? 2000 + parseInt(year) : 1900 + parseInt(year);
+          return new Date(fullYear, monthIndex, parseInt(day));
+        };
+
+        const dateA = parseDate(a);
+        const dateB = parseDate(b);
+        return dateA.getTime() - dateB.getTime();
+      } catch {
+        return 0;
+      }
+    });
 
     console.log('✅ Found areas from Supabase:', uniqueAreas);
-    console.log('✅ Found vibes from Supabase:', uniqueVibes);
+    console.log('✅ Created hierarchical genres:', Object.keys(hierarchicalGenres));
+    console.log('✅ Created hierarchical vibes:', Object.keys(hierarchicalVibes));
     console.log('✅ Found dates from Supabase:', uniqueDates);
-    console.log('✅ Found genres from Supabase:', uniqueGenres);
 
     return NextResponse.json({
       success: true,
       data: {
         areas: uniqueAreas,
-        vibes: uniqueVibes,
         dates: uniqueDates,
-        genres: uniqueGenres
+        hierarchicalGenres: hierarchicalGenres,
+        hierarchicalVibes: hierarchicalVibes,
+        // Legacy format for backward compatibility
+        vibes: Object.keys(hierarchicalVibes),
+        genres: Object.keys(hierarchicalGenres)
       },
-      message: `Retrieved ${uniqueAreas.length} areas (Supabase), ${uniqueVibes.length} vibes (Supabase), ${uniqueDates.length} dates (Supabase), ${uniqueGenres.length} genres (Supabase)`
+      message: `Retrieved ${uniqueAreas.length} areas, ${Object.keys(hierarchicalGenres).length} genre categories, ${Object.keys(hierarchicalVibes).length} vibe categories, ${uniqueDates.length} dates`
     });
   } catch (error) {
     console.error('API Error:', error);

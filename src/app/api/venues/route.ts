@@ -15,6 +15,9 @@ interface VenueResponse {
   category: string;
   created_at: string;
   final_instagram: string;
+  event_date: string;
+  rating: number;
+  rating_count: number;
 }
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -23,31 +26,17 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    
-    // Parse filter parameters
-    const selectedAreas = searchParams.get('areas')?.split(',').filter(a => a && a !== 'All Dubai') || [];
-    const activeVibes = searchParams.get('vibes')?.split(',').filter(v => v) || [];
-    // Parse dates handling both comma and pipe-separated values from frontend
-    const dateParam = searchParams.get('dates');
-    let activeDates: string[] = [];
-    if (dateParam) {
-      // Split by comma first, then split by pipe for malformed concatenated strings
-      const dateStrings = dateParam.split(',').flatMap(d => d.split('|')).filter(d => d && d.trim());
-      // Accept both "17 Sept 25" and "17/September/2025" formats
-      activeDates = dateStrings
-        .map(d => d.trim())
-        .filter(d => {
-          // Accept "DD/Month/YYYY" format or "DD Month YY" format
-          return /^\d{1,2}\/[A-Za-z]+\/\d{4}$/.test(d) || /^\d{1,2}\s[A-Za-z]+\s\d{2}$/.test(d);
-        });
-    }
-    const activeGenres = searchParams.get('genres')?.split(',').filter(g => g) || [];
-    const activeOffers = searchParams.get('offers')?.split(',').filter(o => o) || [];
+    // Force client-side filtering by ignoring all parameters
+    console.log('🔄 Loading ALL venues for client-side filtering');
 
-    console.log('🔍 Venue filtering (Supabase):', { selectedAreas, activeVibes, activeDates, activeGenres, activeOffers });
+    // Use empty filters since we want client-side filtering
+    const selectedAreas: string[] = [];
+    const activeVibes: string[] = [];
+    const activeDates: string[] = [];
+    const activeGenres: string[] = [];
+    const activeOffers: string[] = [];
 
-    // Base query to get venue data from final_1 table
+    // Base query to get venue data from final_1 table - fallback to old columns for now
     let query = supabase
       .from('final_1')
       .select(`
@@ -65,7 +54,9 @@ export async function GET(request: Request) {
         venue_final_instagram,
         event_vibe,
         event_date,
-        music_genre
+        music_genre,
+        venue_rating,
+        venue_rating_count
       `)
       .not('venue_venue_id', 'is', null) // Only get records with venue data
       .not('venue_lat', 'is', null) // Must have coordinates for map
@@ -130,9 +121,11 @@ export async function GET(request: Request) {
       category: record.venue_category,
       created_at: record.venue_created_at,
       final_instagram: record.venue_final_instagram,
-      event_vibe: record.event_vibe, // Keep event_vibe for filtering
-      event_date: record.event_date, // Keep event_date for filtering
-      music_genre: record.music_genre // Keep music_genre for filtering
+      event_vibe: record.event_vibe,
+      event_date: record.event_date,
+      music_genre: record.music_genre,
+      rating: record.venue_rating,
+      rating_count: record.venue_rating_count
     })) || [];
 
     // Apply vibes filtering in memory for complex string matching
@@ -140,10 +133,10 @@ export async function GET(request: Request) {
       console.log('🎯 VIBE FILTERING - Applying in-memory filtering for individual tags');
       venues = venues.filter(venue => {
         if (!venue.event_vibe || !Array.isArray(venue.event_vibe)) return false;
-        
+
         // Check if any selected vibe appears in any of the venue's vibe strings
-        return activeVibes.some(selectedVibe => 
-          venue.event_vibe.some((vibeString: string) => 
+        return activeVibes.some(selectedVibe =>
+          venue.event_vibe.some((vibeString: string) =>
             vibeString && vibeString.toLowerCase().includes(selectedVibe.toLowerCase())
           )
         );
@@ -232,13 +225,11 @@ export async function GET(request: Request) {
     if (activeGenres.length > 0) {
       console.log('🎵 GENRE FILTERING - Applying in-memory filtering for genres');
       venues = venues.filter(venue => {
-        if (!venue.music_genre || !Array.isArray(venue.music_genre)) return false;
+        if (!venue.category) return false;
 
-        // Check if any selected genre exactly matches any of the venue's genres
+        // Check if selected genre matches venue category
         return activeGenres.some(selectedGenre =>
-          venue.music_genre.some((genreString: string) =>
-            genreString && genreString.trim().toLowerCase() === selectedGenre.trim().toLowerCase()
-          )
+          venue.category.trim().toLowerCase() === selectedGenre.trim().toLowerCase()
         );
       });
       console.log('🎵 GENRE FILTERING - Filtered venues count:', venues.length);
@@ -259,8 +250,8 @@ export async function GET(request: Request) {
     venues = Array.from(venuesMap.values());
     console.log('🔄 DEDUPLICATION - Venues after dedup:', venues.length);
 
-    // Remove event_vibe, event_date, and music_genre from final response
-    const venueResponse: VenueResponse[] = venues.map(({event_vibe: _event_vibe, event_date: _event_date, music_genre: _music_genre, ...venue}) => venue as VenueResponse);
+    // Remove internal fields from final response
+    const venueResponse: VenueResponse[] = venues.map(({event_vibe: _vibe, music_genre: _genre, ...venue}) => venue as VenueResponse);
 
     return NextResponse.json({
       success: true,

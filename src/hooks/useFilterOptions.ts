@@ -1,14 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { FilterState } from '@/types';
-
-interface FilterOptions {
-  areas: string[];
-  vibes: string[];
-  dates: string[];
-  genres: string[];
-}
+import type { FilterState, FilterOptions, HierarchicalCategory } from '@/types';
 
 interface UseFilterOptionsResult {
   filterOptions: FilterOptions;
@@ -16,42 +9,27 @@ interface UseFilterOptionsResult {
   error: string | null;
 }
 
-export function useFilterOptions(currentFilters?: FilterState): UseFilterOptionsResult {
+export function useFilterOptions(): UseFilterOptionsResult {
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     areas: [],
-    vibes: [],
     dates: [],
+    hierarchicalGenres: {},
+    hierarchicalVibes: {},
+    vibes: [],
     genres: []
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchFilterOptions = async () => {
+    const fetchAllFilterOptions = async () => {
       try {
         setIsLoading(true);
         setError(null);
 
-        // Build query parameters from current filters for dynamic filtering
-        const searchParams = new URLSearchParams();
+        console.log('🔄 Fetching ALL filter options (one-time load)');
 
-        if (currentFilters?.selectedAreas?.length && !currentFilters.selectedAreas.includes('All Dubai')) {
-          searchParams.set('areas', currentFilters.selectedAreas.join(','));
-        }
-        if (currentFilters?.activeVibes?.length) {
-          searchParams.set('vibes', currentFilters.activeVibes.join(','));
-        }
-        if (currentFilters?.activeDates?.length) {
-          searchParams.set('dates', currentFilters.activeDates.join(','));
-        }
-        if (currentFilters?.activeGenres?.length) {
-          searchParams.set('genres', currentFilters.activeGenres.join(','));
-        }
-
-        const url = `/api/filter-options${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
-        console.log('🔄 Fetching dynamic filter options with URL:', url);
-
-        const response = await fetch(url, {
+        const response = await fetch('/api/filter-options', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -68,6 +46,7 @@ export function useFilterOptions(currentFilters?: FilterState): UseFilterOptions
         if (result.success && result.data) {
           setFilterOptions(result.data);
           setError(null);
+          console.log('✅ Loaded all filter options for client-side filtering');
         } else {
           const errorMsg = result.error || 'Invalid response format';
           setError(errorMsg);
@@ -81,8 +60,8 @@ export function useFilterOptions(currentFilters?: FilterState): UseFilterOptions
       }
     };
 
-    fetchFilterOptions();
-  }, [currentFilters?.selectedAreas, currentFilters?.activeVibes, currentFilters?.activeDates, currentFilters?.activeGenres]);
+    fetchAllFilterOptions();
+  }, []); // Only load once on mount
 
   return { filterOptions, isLoading, error };
 }

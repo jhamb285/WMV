@@ -48,6 +48,48 @@ export interface FilterState {
   searchQuery?: string;
 }
 
+// Hierarchical Filter Types
+export interface HierarchicalCategory {
+  color: string;
+  subcategories: string[];
+}
+
+export interface HierarchicalFilterState {
+  // Primary categories selected
+  selectedPrimaries: {
+    genres: string[];      // ["Electronic", "Hip-Hop"]
+    vibes: string[];       // ["Energy", "Atmosphere"]
+  };
+
+  // Secondary categories selected (grouped by primary)
+  selectedSecondaries: {
+    genres: Record<string, string[]>;  // {"Electronic": ["Techno", "Deep House"]}
+    vibes: Record<string, string[]>;   // {"Energy": ["High Energy", "Underground"]}
+  };
+
+  // Which primaries have their secondaries expanded
+  expandedPrimaries: {
+    genres: string[];      // ["Electronic"]
+    vibes: string[];       // ["Energy"]
+  };
+
+  // Keep existing for backward compatibility and other filters
+  selectedAreas: string[];
+  activeDates: string[];
+  activeOffers: string[];
+  searchQuery?: string;
+}
+
+export interface FilterOptions {
+  areas: string[];
+  dates: string[];
+  hierarchicalGenres: Record<string, HierarchicalCategory>;
+  hierarchicalVibes: Record<string, HierarchicalCategory>;
+  // Legacy format for backward compatibility
+  vibes: string[];
+  genres: string[];
+}
+
 // Component Props Types
 export interface VenuePinProps {
   venue: Venue;

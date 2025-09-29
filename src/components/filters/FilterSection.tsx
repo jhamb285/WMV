@@ -120,7 +120,7 @@ const FilterSection: React.FC<FilterSectionProps> = ({
                   isSelected={section.selectedValues.includes(option)}
                   onClick={() => handlePillClick(option)}
                   variant={getVariantForSection(section.id)}
-                  size="sm"
+                  size={section.id === 'activeDates' ? 'md' : 'sm'}
                 />
               ))}
             </div>

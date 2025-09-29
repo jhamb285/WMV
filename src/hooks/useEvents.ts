@@ -12,11 +12,21 @@ interface UseEventsOptions {
   dates?: string[];
 }
 
+// Global cache for events data - persists across component unmounts
+const eventsCache = new Map<string, {
+  data: Event[];
+  timestamp: number;
+  expiresAt: number;
+}>();
+
+// Cache expiry time: 5 minutes
+const CACHE_EXPIRY_MS = 5 * 60 * 1000;
+
 export function useEvents(options: UseEventsOptions = {}) {
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Create a stable reference to options to prevent re-renders
   const optionsRef = useRef<string>('');
   const currentOptionsString = JSON.stringify({
@@ -32,7 +42,29 @@ export function useEvents(options: UseEventsOptions = {}) {
     try {
       setIsLoading(true);
       setError(null);
-      
+
+      // Check cache first
+      const cacheKey = currentOptionsString;
+      const cachedEntry = eventsCache.get(cacheKey);
+      const now = Date.now();
+
+      // If we have valid cached data, use it
+      if (cachedEntry && now < cachedEntry.expiresAt) {
+        console.log(`🚀 CACHE HIT for venue: ${options.venue_name} - Loading instantly!`);
+        setEvents(cachedEntry.data);
+        setError(null);
+        setIsLoading(false);
+        return;
+      }
+
+      // Remove expired cache entries
+      if (cachedEntry && now >= cachedEntry.expiresAt) {
+        console.log(`🗑️ CACHE EXPIRED for venue: ${options.venue_name} - Fetching fresh data`);
+        eventsCache.delete(cacheKey);
+      }
+
+      console.log(`📡 CACHE MISS for venue: ${options.venue_name} - Fetching from API`);
+
       const params = new URLSearchParams();
       if (options.venue_name) params.append('venue_name', options.venue_name);
       if (options.limit) params.append('limit', options.limit.toString());
@@ -40,23 +72,33 @@ export function useEvents(options: UseEventsOptions = {}) {
       if (options.vibes && options.vibes.length > 0) params.append('vibes', options.vibes.join(','));
       if (options.offers && options.offers.length > 0) params.append('offers', options.offers.join(','));
       if (options.dates && options.dates.length > 0) params.append('dates', options.dates.join(','));
-      
+
       const response = await fetch(`/api/events?${params}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache',
         },
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const result = await response.json();
-      
+
       if (result.success && result.data && Array.isArray(result.data)) {
-        setEvents(result.data);
+        const eventData = result.data;
+
+        // Store in cache
+        eventsCache.set(cacheKey, {
+          data: eventData,
+          timestamp: now,
+          expiresAt: now + CACHE_EXPIRY_MS
+        });
+
+        console.log(`💾 CACHED events for venue: ${options.venue_name} (${eventData.length} events)`);
+
+        setEvents(eventData);
         setError(null);
       } else {
         const errorMsg = result.error || 'Invalid response format';
@@ -69,7 +111,7 @@ export function useEvents(options: UseEventsOptions = {}) {
     } finally {
       setIsLoading(false);
     }
-  }, [currentOptionsString]); // Only re-create when the stringified options actually change
+  }, [currentOptionsString, options.venue_name]); // Only re-create when the stringified options actually change
 
   useEffect(() => {
     // Only fetch if options have actually changed and we have meaningful options
@@ -82,5 +124,24 @@ export function useEvents(options: UseEventsOptions = {}) {
     }
   }, [currentOptionsString, fetchEvents]);
 
-  return { events, isLoading, error, refetch: fetchEvents };
+  return {
+    events,
+    isLoading,
+    error,
+    refetch: fetchEvents,
+    // Cache management utilities
+    clearCache: () => {
+      eventsCache.clear();
+      console.log('🗑️ Events cache cleared');
+    },
+    getCacheStats: () => ({
+      size: eventsCache.size,
+      entries: Array.from(eventsCache.entries()).map(([key, value]) => ({
+        key,
+        timestamp: new Date(value.timestamp).toISOString(),
+        expiresAt: new Date(value.expiresAt).toISOString(),
+        eventCount: value.data.length
+      }))
+    })
+  };
 }
