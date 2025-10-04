@@ -8,7 +8,10 @@ interface EventRecord {
   id?: number;
   venue_name?: string;
   special_offers?: string;
-  music_genre?: string[];
+  music_genre_processed?: {
+    primaries: string[];
+    secondariesByPrimary: Record<string, string[]>;
+  };
   venue_id?: number;
 }
 
@@ -36,11 +39,11 @@ export async function POST(request: Request) {
       .from('final_1')
       .select('*')
       .not('event_id', 'is', null)
-      .order('event_date', { ascending: true })
+      .order('event_date', { ascending: false }) // Show newest dates first
       .limit(limit * venue_names.length); // Increase limit for multiple venues
 
     // Use multiple OR filters for venue names (safer approach)
-    let venueConditions: string[] = [];
+    const venueConditions: string[] = [];
     venue_names.forEach(venue_name => {
       venueConditions.push(`venue_name.ilike.%${venue_name}%`);
       venueConditions.push(`venue_name_original.ilike.%${venue_name}%`);
@@ -50,11 +53,10 @@ export async function POST(request: Request) {
       query = query.or(venueConditions.join(','));
     }
 
-    // Apply other filters
+    // Apply genre filter in JavaScript after fetching (since music_genre_processed is JSONB)
+    let genreFilterToApply = null;
     if (genres) {
-      const genreList = Array.isArray(genres) ? genres : genres.split(',').map(g => g.trim());
-      const genreConditions = genreList.map(genre => `music_genre.cs.{${genre}}`).join(',');
-      query = query.or(genreConditions);
+      genreFilterToApply = Array.isArray(genres) ? genres : genres.split(',').map(g => g.trim());
     }
 
     let vibeFilterToApply = null;
@@ -79,10 +81,20 @@ export async function POST(request: Request) {
       }, { status: 500 });
     }
 
-    // Apply vibes filter in JavaScript
+    // Apply genre filter in JavaScript using music_genre_processed primaries
     let filteredData = data;
-    if (vibeFilterToApply && vibeFilterToApply.length > 0) {
+    if (genreFilterToApply && genreFilterToApply.length > 0) {
       filteredData = data?.filter((record: EventRecord) => {
+        if (!record.music_genre_processed?.primaries) return false;
+        return genreFilterToApply.some((requestedGenre: string) =>
+          record.music_genre_processed!.primaries.includes(requestedGenre)
+        );
+      });
+    }
+
+    // Apply vibes filter in JavaScript
+    if (vibeFilterToApply && vibeFilterToApply.length > 0) {
+      filteredData = filteredData?.filter((record: EventRecord) => {
         if (!record.event_vibe || !Array.isArray(record.event_vibe)) return false;
         return vibeFilterToApply.some((requestedVibe: string) =>
           record.event_vibe!.some((eventVibeElement: string) =>
@@ -153,7 +165,7 @@ export async function POST(request: Request) {
     })) || [];
 
     // Group events by venue name
-    const eventsByVenue: Record<string, any[]> = {};
+    const eventsByVenue: Record<string, unknown[]> = {};
 
     venue_names.forEach(venue_name => {
       eventsByVenue[venue_name] = transformedData.filter(event =>

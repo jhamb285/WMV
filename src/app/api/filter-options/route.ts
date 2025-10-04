@@ -1,4 +1,4 @@
-// Filter Options API route - areas from Supabase, other filters using dummy data
+// Filter Options API route - areas from Supabase with hierarchical genre/vibe structure
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -6,7 +6,11 @@ interface FilterRecord {
   venue_area?: string;
   event_vibe?: string[];
   event_date?: string;
-  music_genre?: string[];
+  music_genre_processed?: {
+    primaries: string[];
+    secondariesByPrimary: Record<string, string[]>;
+    colorFamilies: string[];
+  };
   venue_category?: string;
   id?: number;
   venue_name?: string;
@@ -18,9 +22,8 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Dummy filter options data (vibes, dates, genres still dummy) - removed unused constant
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
 
     // TEMPORARY: Ignore all parameters for client-side filtering
     // TODO: Remove this once all old API calls are eliminated
@@ -32,12 +35,13 @@ export async function GET(request: Request) {
     const activeDates: string[] = [];
     const activeGenres: string[] = [];
 
-    // Get base data without any filters - fallback to old columns
+    // Get base data without any filters - only records with processed genres
     const { data, error } = await supabase
       .from('final_1')
-      .select('venue_area, event_vibe, event_date, music_genre, venue_category')
+      .select('venue_area, event_vibe, event_date, music_genre_processed, venue_category')
       .not('venue_area', 'is', null)
-      .not('venue_area', 'eq', '');
+      .not('venue_area', 'eq', '')
+      .not('music_genre_processed', 'is', null);
 
     if (error) {
       console.error('Supabase error:', error);
@@ -125,11 +129,9 @@ export async function GET(request: Request) {
       // Apply genre filter if selected (unless we're excluding genres)
       if (excludeFilterType !== 'genres' && activeGenres.length > 0) {
         filteredData = filteredData.filter(record => {
-          if (!record.music_genre || !Array.isArray(record.music_genre)) return false;
+          if (!record.music_genre_processed?.primaries) return false;
           return activeGenres.some(selectedGenre =>
-            record.music_genre.some((genreString: string) =>
-              genreString && genreString.trim().toLowerCase() === selectedGenre.trim().toLowerCase()
-            )
+            record.music_genre_processed.primaries.includes(selectedGenre)
           );
         });
       }
@@ -145,27 +147,44 @@ export async function GET(request: Request) {
       areaFilteredData?.map(record => record.venue_area).filter(area => area && area.trim())
     )].sort();
 
-    // Use simulated hierarchical structure for now (can be replaced with processed JSON later)
-    const hierarchicalGenres = {
-      "Electronic": {
-        color: "purple",
-        subcategories: ["Techno", "Deep House", "Melodic House", "Tech House", "Progressive"]
-      },
-      "Hip-Hop": {
-        color: "blue",
-        subcategories: ["Rap", "R&B", "Urban"]
-      },
-      "Live Music": {
-        color: "green",
-        subcategories: ["Jazz", "Rock", "Acoustic", "Band"]
-      },
-      "Mixed": {
-        color: "gray",
-        subcategories: ["Various", "Multi-Genre"]
-      }
-    };
+    // Extract hierarchical genres from music_genre_processed column
+    const genreFilteredData = getFilteredDataExcluding('genres');
 
-    // Extract flat vibes from existing data to simulate hierarchical structure
+    // Build hierarchical structure from processed data
+    const genreMap: Record<string, { color: string; subcategories: Set<string> }> = {};
+
+    genreFilteredData?.forEach((record: FilterRecord) => {
+      if (record.music_genre_processed?.primaries) {
+        record.music_genre_processed.primaries.forEach(primary => {
+          if (!genreMap[primary]) {
+            // Get color from first record with this primary
+            const color = record.music_genre_processed?.colorFamilies?.[0] || 'gray';
+            genreMap[primary] = {
+              color: color,
+              subcategories: new Set()
+            };
+          }
+
+          // Add secondaries for this primary
+          const secondaries = record.music_genre_processed?.secondariesByPrimary?.[primary] || [];
+          secondaries.forEach(sec => genreMap[primary].subcategories.add(sec));
+        });
+      }
+    });
+
+    // Convert to final format
+    const hierarchicalGenres: Record<string, { color: string; subcategories: string[] }> = {};
+    Object.entries(genreMap).forEach(([primary, data]) => {
+      hierarchicalGenres[primary] = {
+        color: data.color,
+        subcategories: Array.from(data.subcategories).sort()
+      };
+    });
+
+    // Get flat list for backward compatibility
+    const allGenresFlat = Object.keys(hierarchicalGenres).sort();
+
+    // Extract flat vibes from existing data and create hierarchical structure
     const vibeFilteredData = getFilteredDataExcluding('vibes');
     const flatVibes = [...new Set(
       vibeFilteredData?.flatMap((record: FilterRecord) =>
@@ -177,42 +196,39 @@ export async function GET(request: Request) {
       )
     )];
 
-    const hierarchicalVibes = {
+    // Define vibe categorization keywords (dynamic categorization)
+    const vibeCategories: Record<string, {keywords: string[], color: string}> = {
       "Energy": {
-        color: "orange",
-        subcategories: flatVibes.filter(vibe =>
-          vibe.toLowerCase().includes('high energy') ||
-          vibe.toLowerCase().includes('nightclub') ||
-          vibe.toLowerCase().includes('packed')
-        ).slice(0, 5)
+        keywords: ["high energy", "nightclub", "packed", "party", "dance", "energetic"],
+        color: "orange"
       },
       "Atmosphere": {
-        color: "teal",
-        subcategories: flatVibes.filter(vibe =>
-          vibe.toLowerCase().includes('open-air') ||
-          vibe.toLowerCase().includes('rooftop') ||
-          vibe.toLowerCase().includes('lounge') ||
-          vibe.toLowerCase().includes('intimate')
-        ).slice(0, 5)
+        keywords: ["open-air", "rooftop", "terrace", "lounge", "intimate", "casual", "chill"],
+        color: "teal"
       },
       "Event Type": {
-        color: "pink",
-        subcategories: flatVibes.filter(vibe =>
-          vibe.toLowerCase().includes('brunch') ||
-          vibe.toLowerCase().includes('vip') ||
-          vibe.toLowerCase().includes('beach')
-        ).slice(0, 5)
+        keywords: ["beach", "pool", "dayclub", "brunch", "vip", "exclusive", "luxury", "fine dining"],
+        color: "pink"
       },
       "Music Style": {
-        color: "indigo",
-        subcategories: flatVibes.filter(vibe =>
-          vibe.toLowerCase().includes('techno') ||
-          vibe.toLowerCase().includes('house') ||
-          vibe.toLowerCase().includes('hip-hop') ||
-          vibe.toLowerCase().includes('live')
-        ).slice(0, 5)
+        keywords: ["techno", "house", "hip-hop", "r&b", "live", "rock", "indie", "jazz"],
+        color: "indigo"
       }
     };
+
+    // Build hierarchical vibes by categorizing each vibe tag
+    const hierarchicalVibes: Record<string, { color: string; subcategories: string[] }> = {};
+
+    Object.entries(vibeCategories).forEach(([primary, {keywords, color}]) => {
+      const matchingVibes = flatVibes.filter(vibe =>
+        keywords.some(keyword => vibe.toLowerCase().includes(keyword.toLowerCase()))
+      );
+
+      hierarchicalVibes[primary] = {
+        color: color,
+        subcategories: matchingVibes.sort()
+      };
+    });
 
     // Get all unique dates from database (historical and future)
     const dateFilteredData = getFilteredDataExcluding('dates');
@@ -256,7 +272,8 @@ export async function GET(request: Request) {
     });
 
     console.log('✅ Found areas from Supabase:', uniqueAreas);
-    console.log('✅ Created hierarchical genres:', Object.keys(hierarchicalGenres));
+    console.log('✅ Extracted hierarchical genres from music_genre_processed:', Object.keys(hierarchicalGenres));
+    console.log('✅ Genre details:', hierarchicalGenres);
     console.log('✅ Created hierarchical vibes:', Object.keys(hierarchicalVibes));
     console.log('✅ Found dates from Supabase:', uniqueDates);
 
@@ -267,9 +284,9 @@ export async function GET(request: Request) {
         dates: uniqueDates,
         hierarchicalGenres: hierarchicalGenres,
         hierarchicalVibes: hierarchicalVibes,
-        // Legacy format for backward compatibility
-        vibes: Object.keys(hierarchicalVibes),
-        genres: Object.keys(hierarchicalGenres)
+        // Return flat genres for FilterBottomSheet backward compatibility
+        genres: allGenresFlat,
+        vibes: Object.keys(hierarchicalVibes)
       },
       message: `Retrieved ${uniqueAreas.length} areas, ${Object.keys(hierarchicalGenres).length} genre categories, ${Object.keys(hierarchicalVibes).length} vibe categories, ${uniqueDates.length} dates`
     });

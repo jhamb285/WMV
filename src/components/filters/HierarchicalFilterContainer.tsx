@@ -15,8 +15,12 @@ const HierarchicalFilterContainer: React.FC<HierarchicalFilterContainerProps> = 
   onFiltersChange,
   filterOptions
 }) => {
+  console.log('🎯 HIERARCHICAL CONTAINER - Rendering with filters:', filters);
+  console.log('🎯 HIERARCHICAL CONTAINER - Filter options:', filterOptions);
+
   // Handle primary category selection
   const handlePrimaryClick = (type: 'genres' | 'vibes', category: string) => {
+    console.log('🔘 PRIMARY CLICK - Type:', type, 'Category:', category);
     const currentPrimaries = filters.selectedPrimaries[type];
     const currentExpanded = filters.expandedPrimaries[type];
 
@@ -57,13 +61,21 @@ const HierarchicalFilterContainer: React.FC<HierarchicalFilterContainerProps> = 
 
   // Handle secondary category selection
   const handleSecondaryClick = (type: 'genres' | 'vibes', primary: string, secondary: string) => {
+    console.log(`🎯 SECONDARY CLICK - Type: ${type} 🏷️ Primary: ${primary} 🎵 Secondary: ${secondary}`);
+    console.log('🔍 FULL FILTER STATE:', JSON.stringify(filters, null, 2));
     const currentSecondaries = filters.selectedSecondaries[type][primary] || [];
+    console.log('📦 Current secondaries:', currentSecondaries);
+    console.log('❓ Is selected?', currentSecondaries.includes(secondary));
 
-    const newSecondaries = currentSecondaries.includes(secondary)
+    const isCurrentlySelected = currentSecondaries.includes(secondary);
+    const newSecondaries = isCurrentlySelected
       ? currentSecondaries.filter(s => s !== secondary)
       : [...currentSecondaries, secondary];
 
-    onFiltersChange({
+    console.log(isCurrentlySelected ? '➖ REMOVING from selection' : '➕ ADDING to selection');
+    console.log('📝 New secondaries after toggle:', newSecondaries);
+
+    const newFilters = {
       ...filters,
       selectedSecondaries: {
         ...filters.selectedSecondaries,
@@ -72,7 +84,11 @@ const HierarchicalFilterContainer: React.FC<HierarchicalFilterContainerProps> = 
           [primary]: newSecondaries
         }
       }
-    });
+    };
+
+    console.log('✅ NEW FILTER STATE (about to send):', JSON.stringify(newFilters, null, 2));
+    console.log(`🎯 NEW secondaries for ${primary}:`, newFilters.selectedSecondaries[type][primary]);
+    onFiltersChange(newFilters);
   };
 
   // Get color for category
@@ -132,21 +148,23 @@ const HierarchicalFilterContainer: React.FC<HierarchicalFilterContainerProps> = 
     const colorName = getCategoryColor(type, primary);
     const hexColor = getHexColor(colorName);
 
+    // Removed verbose render logging
+
     return (
       <button
         key={`${type}-${primary}-${secondary}`}
         onClick={() => handleSecondaryClick(type, primary, secondary)}
         className={`
           px-2 py-1 text-xs font-medium rounded-full
-          backdrop-blur-lg border
+          backdrop-blur-lg border-2
           transition-all duration-200 whitespace-nowrap flex-shrink-0
           ${isSelected
-            ? 'text-white border-white/70'
-            : 'text-white/80 border-white/40 hover:border-white/60'
+            ? 'text-white border-white shadow-lg scale-105'
+            : 'text-white/70 border-white/30 hover:border-white/50 hover:text-white/90'
           }
         `}
         style={{
-          backgroundColor: isSelected ? `${hexColor}E6` : `${hexColor}99`
+          backgroundColor: isSelected ? hexColor : `${hexColor}80`
         }}
       >
         {secondary}

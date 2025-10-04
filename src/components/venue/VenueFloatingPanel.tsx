@@ -16,6 +16,7 @@ interface VenueFloatingPanelProps {
   filters?: FilterState;
   stories?: InstagramStory[];
   onViewDetails?: () => void;
+  onFiltersChange?: (filters: FilterState) => void;
 }
 
 const VenueFloatingPanel: React.FC<VenueFloatingPanelProps> = ({
@@ -24,19 +25,21 @@ const VenueFloatingPanel: React.FC<VenueFloatingPanelProps> = ({
   onClose,
   filters,
   stories = [],
-  onViewDetails
+  onViewDetails,
+  onFiltersChange
 }) => {
   // Get theme context
   const { isDarkMode } = useTheme();
 
   // Fetch real event data for this venue with applied filters (now with caching!)
+  // NOTE: Don't pass dates filter here - we want ALL dates to show in the date buttons
   const { events, isLoading: eventsLoading, error: eventsError } = useEvents({
     venue_name: venue?.name || '',
-    limit: 10,
+    limit: 50, // Increased to get more events across different dates
     genres: filters?.activeGenres || [],
     vibes: filters?.activeVibes || [],
-    offers: filters?.activeOffers || [],
-    dates: filters?.activeDates || []
+    offers: filters?.activeOffers || []
+    // dates: filters?.activeDates || [] ← REMOVED so all dates are fetched
   });
 
   // Group events by date
@@ -162,14 +165,14 @@ const VenueFloatingPanel: React.FC<VenueFloatingPanelProps> = ({
 
                   {/* Header with Venue Rating and Name */}
                   <div className="flex items-center gap-3 mb-2">
-                    {/* Venue Rating */}
+                    {/* Venue Rating - Always display with dummy data */}
                     <div className="flex items-center gap-1.5">
                       <Star className="h-5 w-5 text-amber-600 fill-amber-600" />
                       <span className={`text-base font-semibold ${isDarkMode ? 'text-amber-400' : 'text-amber-700'}`}>
-                        4.5
+                        {venue.rating ? venue.rating.toFixed(1) : '4.5'}
                       </span>
                       <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                        (127)
+                        ({venue.rating_count || '120'})
                       </span>
                     </div>
 
@@ -240,7 +243,7 @@ const VenueFloatingPanel: React.FC<VenueFloatingPanelProps> = ({
                                     {/* Ticket Price - 1 Line Only */}
                                     {event.ticket_price && (
                                       <div className="flex items-start gap-2 text-sm text-orange-600 mb-1">
-                                        <DollarSign className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                                        <span className="font-semibold flex-shrink-0 mt-0.5">AED</span>
                                         <span className="line-clamp-1 leading-tight">{event.ticket_price}</span>
                                       </div>
                                     )}
@@ -297,7 +300,7 @@ const VenueFloatingPanel: React.FC<VenueFloatingPanelProps> = ({
                                     {/* Ticket Price - 1 Line Only */}
                                     {event.ticket_price && (
                                       <div className="flex items-start gap-2 text-sm text-orange-600 mb-1">
-                                        <DollarSign className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                                        <span className="font-semibold flex-shrink-0 mt-0.5">AED</span>
                                         <span className="line-clamp-1 leading-tight">{event.ticket_price}</span>
                                       </div>
                                     )}
@@ -344,11 +347,14 @@ const VenueFloatingPanel: React.FC<VenueFloatingPanelProps> = ({
                              }}>
                           {uniqueEventDates.map((dateObj, index) => {
                             const isSelected = selectedRightPanelDates.includes(dateObj.dateKey);
+
                             return (
                               <button
                                 key={`date-${index}`}
                                 onClick={() => {
-                                  // Single date selection only
+                                  // Single date selection - LOCAL FILTERING ONLY
+                                  // Just update local state to filter which events are shown
+                                  // Don't propagate to parent to avoid refetching and losing other dates
                                   setSelectedRightPanelDates([dateObj.dateKey]);
                                 }}
                                 className={`px-2 py-1 rounded-full text-xs whitespace-nowrap flex-shrink-0 transition-colors ${

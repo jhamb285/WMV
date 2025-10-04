@@ -8,18 +8,7 @@ import { useClientSideVenues } from '@/hooks/useClientSideVenues';
 import { type Venue, type FilterState } from '@/types';
 
 export default function Home() {
-  console.log('🏠 HOME COMPONENT - Mounting (Production Ready)...');
 
-  // Get today's date in DD/Month/YYYY format
-  const getTodayDateString = () => {
-    const today = new Date();
-    const day = today.getDate();
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                       'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
-    const month = monthNames[today.getMonth()];
-    const year = today.getFullYear().toString().slice(-2); // Last 2 digits
-    return `${day} ${month} ${year}`;
-  };
 
   const [filters, setFilters] = useState<FilterState>({
     selectedAreas: ['All Dubai'],
@@ -31,7 +20,7 @@ export default function Home() {
   });
 
   // Use client-side filtering for instant performance
-  const { allVenues, filteredVenues, isLoading, error } = useClientSideVenues(filters);
+  const { filteredVenues, isLoading, error } = useClientSideVenues(filters);
 
   // Use filtered venues for display
   const venues = filteredVenues;
@@ -62,18 +51,13 @@ export default function Home() {
     sessionStorage.setItem('hasSeenWelcomePopup', 'true');
   };
 
-  const handleVenueSelect = (venue: Venue) => {
-    console.log('📍 PAGE - handleVenueSelect called with:', venue.name);
+  const handleVenueSelect = (_venue: Venue) => {
   };
 
   const handleFiltersChange = (newFilters: FilterState) => {
     setFilters(newFilters);
-    console.log('Filters updated:', newFilters);
   };
 
-  const handleRefresh = () => {
-    console.log('Refreshing venues...');
-  };
 
   if (error) {
     return (
@@ -86,7 +70,6 @@ export default function Home() {
     );
   }
 
-  console.log('🚀 PAGE - Debug state:', { isLoading, venuesCount: venues.length, error });
   
   // Show loading screen only for initial load (when no venues yet)
   if (isLoading && venues.length === 0) {
@@ -101,12 +84,6 @@ export default function Home() {
     );
   }
 
-  console.log('🎯 RENDER - About to render MapContainer:', {
-    venueCount: venues.length,
-    venueNames: venues.map((v: Venue) => v.name),
-    currentFilters: filters,
-    isLoading
-  });
 
   return (
     <ThemeProvider>

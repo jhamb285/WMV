@@ -33,6 +33,9 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
   onFiltersChange,
   'data-testid': dataTestId,
 }) => {
+  console.log('🚨 MAP CONTAINER RENDER - Component is rendering!');
+  console.log('🚨 MAP CONTAINER RENDER - Filters:', filters);
+
   // Convert FilterState to HierarchicalFilterState
   const convertToHierarchical = (filterState: FilterState): HierarchicalFilterState => {
     return {
@@ -57,18 +60,40 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
 
   // Convert HierarchicalFilterState back to FilterState
   const convertFromHierarchical = (hierarchicalState: HierarchicalFilterState): FilterState => {
+    console.log('🚀 === CONVERSION START ===');
+    console.log('📥 Input hierarchical state:', hierarchicalState);
+
+    // Combine primaries AND secondaries into flat arrays for filtering
+    const genrePrimaries = hierarchicalState.selectedPrimaries.genres;
+    const genreSecondaries = Object.values(hierarchicalState.selectedSecondaries.genres || {}).flat();
+    const allActiveGenres = [...genrePrimaries, ...genreSecondaries];
+
+    const vibePrimaries = hierarchicalState.selectedPrimaries.vibes;
+    const vibeSecondaries = Object.values(hierarchicalState.selectedSecondaries.vibes || {}).flat();
+    const allActiveVibes = [...vibePrimaries, ...vibeSecondaries];
+
+    console.log('🎵 genrePrimaries:', genrePrimaries);
+    console.log('🎸 genreSecondaries:', genreSecondaries);
+    console.log('🎼 allActiveGenres:', allActiveGenres);
+    console.log('📋 allActiveGenres DETAILED:', allActiveGenres.map((g, i) => `[${i}] = "${g}"`).join(', '));
+    console.log('✨ vibePrimaries:', vibePrimaries);
+    console.log('💫 vibeSecondaries:', vibeSecondaries);
+    console.log('🌟 allActiveVibes:', allActiveVibes);
+
     return {
       selectedAreas: hierarchicalState.selectedAreas,
-      activeVibes: hierarchicalState.selectedPrimaries.vibes,
+      activeVibes: allActiveVibes,
       activeDates: hierarchicalState.activeDates,
-      activeGenres: hierarchicalState.selectedPrimaries.genres,
+      activeGenres: allActiveGenres,
       activeOffers: hierarchicalState.activeOffers,
       searchQuery: hierarchicalState.searchQuery
     };
   };
 
   const handleHierarchicalFiltersChange = (hierarchicalFilters: HierarchicalFilterState) => {
+    console.log('📍 HIERARCHICAL CHANGE - Handler called with:', hierarchicalFilters);
     const convertedFilters = convertFromHierarchical(hierarchicalFilters);
+    console.log('📍 HIERARCHICAL CHANGE - Converted to flat:', convertedFilters);
     onFiltersChange(convertedFilters);
   };
   // Use useLoadScript to load Google Maps - MUST be at the top before any conditionals
@@ -553,6 +578,14 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
       />
 
       {/* Hierarchical Filter Container below logo */}
+      {(() => {
+        console.log('🎯 RENDER CHECK - About to render HierarchicalFilterContainer');
+        console.log('🎯 RENDER CHECK - filterOptions:', filterOptions);
+        console.log('🎯 RENDER CHECK - filters:', filters);
+        console.log('🎯 RENDER CHECK - hierarchicalGenres:', filterOptions?.hierarchicalGenres);
+        console.log('🎯 RENDER CHECK - hierarchicalVibes:', filterOptions?.hierarchicalVibes);
+        return null;
+      })()}
       <HierarchicalFilterContainer
         filters={convertToHierarchical(filters)}
         onFiltersChange={handleHierarchicalFiltersChange}
@@ -618,6 +651,7 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
         isOpen={isFloatingPanelOpen}
         onClose={handleFloatingPanelClose}
         filters={filters}
+        onFiltersChange={onFiltersChange}
         onViewDetails={() => {
           setIsFloatingPanelOpen(false);
           setIsSidebarOpen(true);

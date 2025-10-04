@@ -8,7 +8,10 @@ interface EventRecord {
   id?: number;
   venue_name?: string;
   special_offers?: string;
-  music_genre?: string[];
+  music_genre_processed?: {
+    primaries: string[];
+    secondariesByPrimary: Record<string, string[]>;
+  };
   venue_id?: number;
 }
 
@@ -30,7 +33,7 @@ export async function GET(request: Request) {
       .from('final_1')
       .select('*')
       .not('event_id', 'is', null) // Only get records with event data
-      .order('event_date', { ascending: true })
+      .order('event_date', { ascending: false }) // Show newest dates first
       .limit(parseInt(limit));
 
     // Filter by venue if specified - now including Instagram handle matching
@@ -59,11 +62,10 @@ export async function GET(request: Request) {
       }
     }
 
-    // Filter by genres if specified (now using array contains)
+    // Filter by genres - will apply in JS after fetching since music_genre_processed is JSONB
+    let genreFilterToApply = null;
     if (genres) {
-      const genreList = genres.split(',').map(g => g.trim());
-      const genreConditions = genreList.map(genre => `music_genre.cs.{${genre}}`).join(',');
-      query = query.or(genreConditions);
+      genreFilterToApply = genres.split(',').map(g => g.trim());
     }
 
     // Apply vibes filter after getting initial data since array substring search is complex
@@ -101,6 +103,16 @@ export async function GET(request: Request) {
           record.event_vibe!.some((eventVibeElement: string) =>
             eventVibeElement && eventVibeElement.toLowerCase().includes(requestedVibe.toLowerCase())
           )
+        );
+      });
+    }
+
+    // Apply genre filter in JavaScript
+    if (genreFilterToApply && genreFilterToApply.length > 0) {
+      filteredData = filteredData?.filter((record: EventRecord) => {
+        if (!record.music_genre_processed?.primaries) return false;
+        return genreFilterToApply.some((requestedGenre: string) =>
+          record.music_genre_processed!.primaries.includes(requestedGenre)
         );
       });
     }
@@ -159,7 +171,7 @@ export async function GET(request: Request) {
       event_time: record.event_time,
       venue_name: record.venue_name,
       artist: Array.isArray(record.artists) ? record.artists.join(', ') : record.artists,
-      music_genre: Array.isArray(record.music_genre) ? record.music_genre.join(', ') : record.music_genre,
+      music_genre: record.music_genre_processed?.primaries?.join(', ') || '',
       event_vibe: Array.isArray(record.event_vibe) ? record.event_vibe.join(', ') : record.event_vibe,
       event_name: record.event_name,
       ticket_price: record.ticket_price,

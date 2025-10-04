@@ -22,7 +22,6 @@ export function useClientSideVenues(filters: FilterState): UseClientSideVenuesRe
         setIsLoading(true);
         setError(null);
 
-        console.log('🔄 Loading ALL venues for client-side filtering...');
 
         const response = await fetch('/api/venues', {
           method: 'GET',
@@ -41,7 +40,6 @@ export function useClientSideVenues(filters: FilterState): UseClientSideVenuesRe
         if (result.success && result.data) {
           setAllVenues(result.data);
           setError(null);
-          console.log(`✅ Loaded ${result.data.length} venues for client-side filtering`);
         } else {
           const errorMsg = result.error || 'Invalid response format';
           setError(errorMsg);
@@ -62,7 +60,13 @@ export function useClientSideVenues(filters: FilterState): UseClientSideVenuesRe
   const filteredVenues = useMemo(() => {
     if (!allVenues.length) return [];
 
-    console.log('⚡ Filtering venues client-side...', filters);
+    console.log('🔍 CLIENT FILTER - Starting filter with:', {
+      areas: filters.selectedAreas,
+      genres: filters.activeGenres,
+      vibes: filters.activeVibes,
+      dates: filters.activeDates,
+      search: filters.searchQuery
+    });
 
     return allVenues.filter(venue => {
       // Apply area filter
@@ -81,26 +85,71 @@ export function useClientSideVenues(filters: FilterState): UseClientSideVenuesRe
         if (!matchesArea) return false;
       }
 
-      // Apply genre filter
+      // Apply genre filter using music_genre_processed primaries AND secondaries
       if (filters.activeGenres?.length > 0) {
-        const venueGenres = venue.category || venue.venue_category;
-        if (!venueGenres) return false;
+        if (!venue.music_genre_processed?.primaries) {
+          console.log('🎵 FILTER - Venue excluded (no processed genres):', venue.name);
+          return false;
+        }
 
-        // Handle both string and array formats
-        const genreArray = Array.isArray(venueGenres) ? venueGenres : [venueGenres];
-        const matchesGenre = filters.activeGenres.some(selectedGenre =>
-          genreArray.some(genre =>
-            typeof genre === 'string' && genre.toLowerCase().includes(selectedGenre.toLowerCase())
-          )
-        );
+        // ALL selected genres must match (AND logic)
+        const allGenresMatch = filters.activeGenres.every(selectedGenre => {
+          // Check if it's a primary
+          if (venue.music_genre_processed!.primaries.includes(selectedGenre)) {
+            console.log('  ✅ Genre match (primary):', selectedGenre, 'in', venue.name);
+            return true;
+          }
 
-        if (!matchesGenre) return false;
+          // Check if it's a secondary
+          for (const [primary, secondaries] of Object.entries(venue.music_genre_processed!.secondariesByPrimary || {})) {
+            if (secondaries.includes(selectedGenre)) {
+              console.log('  ✅ Genre match (secondary):', selectedGenre, 'under', primary, 'in', venue.name);
+              return true;
+            }
+          }
+
+          console.log('  ❌ Genre no match:', selectedGenre, 'in', venue.name);
+          return false;
+        });
+
+        if (!allGenresMatch) {
+          console.log('🎵 FILTER - Venue excluded (not all genres match):', venue.name, 'Primaries:', venue.music_genre_processed.primaries, 'Secondaries:', venue.music_genre_processed.secondariesByPrimary, 'Selected:', filters.activeGenres);
+          return false;
+        }
+
+        console.log('🎵 FILTER - Venue included:', venue.name, 'Primaries:', venue.music_genre_processed.primaries, 'Secondaries:', venue.music_genre_processed.secondariesByPrimary);
       }
 
-      // Apply vibe filter (when hierarchical vibes are mapped to activeVibes)
+      // Apply vibe filter using event_vibe_processed primaries AND secondaries
       if (filters.activeVibes?.length > 0) {
-        // For now, skip vibe filtering until we have proper vibe data on venues
-        // This will be handled when we integrate with the events API
+        if (!venue.event_vibe_processed?.primaries) {
+          console.log('🎯 FILTER - Venue excluded (no processed vibes):', venue.name);
+          return false;
+        }
+
+        // ALL selected vibes must match (AND logic)
+        const allVibesMatch = filters.activeVibes.every(selectedVibe => {
+          // Check if it's a primary
+          if (venue.event_vibe_processed!.primaries.includes(selectedVibe)) {
+            return true;
+          }
+
+          // Check if it's a secondary
+          for (const secondaries of Object.values(venue.event_vibe_processed!.secondariesByPrimary || {})) {
+            if (secondaries.includes(selectedVibe)) {
+              return true;
+            }
+          }
+
+          return false;
+        });
+
+        if (!allVibesMatch) {
+          console.log('🎯 FILTER - Venue excluded (not all vibes match):', venue.name, 'Primaries:', venue.event_vibe_processed.primaries, 'Selected:', filters.activeVibes);
+          return false;
+        }
+
+        console.log('🎯 FILTER - Venue included:', venue.name, 'Vibe Primaries:', venue.event_vibe_processed.primaries);
       }
 
       // Apply date filter (skip for venues, this is for events)

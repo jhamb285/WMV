@@ -20,6 +20,19 @@ export interface Venue {
   category: string;
   created_at: string;
   final_instagram?: string; // Added for join compatibility
+  music_genre_processed?: {
+    primaries: string[];
+    secondariesByPrimary: Record<string, string[]>;
+    colorFamilies: string[];
+  };
+  event_vibe_processed?: {
+    primaries: string[];
+    secondariesByPrimary: Record<string, string[]>;
+    colorFamilies: string[];
+  };
+  event_date?: string;
+  rating?: number;
+  rating_count?: number;
 }
 
 // Map Types

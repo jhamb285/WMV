@@ -437,7 +437,7 @@ const VenueDetailsSidebar: React.FC<VenueDetailsSidebarProps> = ({
                           {event.ticket_price && (
                         <div className="flex items-start gap-2.5">
                           <div className="p-1.5 rounded-lg bg-green-600/20">
-                            <DollarSign className="h-4 w-4 text-green-400" />
+                            <span className="text-sm font-bold text-green-400">AED</span>
                           </div>
                           <div className="flex-1">
                             <p className="text-xs font-semibold text-white mb-1.5">Pricing</p>

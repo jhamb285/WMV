@@ -24,7 +24,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     // Force client-side filtering by ignoring all parameters
     console.log('🔄 Loading ALL venues for client-side filtering');
@@ -34,9 +34,8 @@ export async function GET(request: Request) {
     const activeVibes: string[] = [];
     const activeDates: string[] = [];
     const activeGenres: string[] = [];
-    const activeOffers: string[] = [];
 
-    // Base query to get venue data from final_1 table - fallback to old columns for now
+    // Base query to get venue data from final_1 table - only with processed genres
     let query = supabase
       .from('final_1')
       .select(`
@@ -54,15 +53,16 @@ export async function GET(request: Request) {
         venue_final_instagram,
         event_vibe,
         event_date,
-        music_genre,
+        music_genre_processed,
         venue_rating,
         venue_rating_count
       `)
       .not('venue_venue_id', 'is', null) // Only get records with venue data
       .not('venue_lat', 'is', null) // Must have coordinates for map
       .not('venue_lng', 'is', null)
-      .not('event_date', 'is', null) // Only get venues that have events
-      .order('venue_name_original', { ascending: true });
+      .not('music_genre_processed', 'is', null) // Only get venues with processed genres
+      .order('venue_name_original', { ascending: true })
+      .limit(1000); // Fetch up to 1000 records (Supabase default is often 1000)
 
     // Apply area filter
     if (selectedAreas.length > 0) {
@@ -97,7 +97,9 @@ export async function GET(request: Request) {
     }
     
     const { data, error } = await query;
-    
+
+    console.log('📊 SUPABASE QUERY - Raw records returned:', data?.length || 0);
+
     if (error) {
       console.error('Supabase error:', error);
       return NextResponse.json({
@@ -106,6 +108,61 @@ export async function GET(request: Request) {
         error: error.message
       }, { status: 500 });
     }
+
+    // Helper function to transform event_vibe string into hierarchical structure
+    const transformEventVibeToProcessed = (eventVibeArray: string[] | null | undefined) => {
+      if (!eventVibeArray || !Array.isArray(eventVibeArray)) return null;
+
+      // Define the same vibe categories as in filter-options
+      const vibeCategories: Record<string, {keywords: string[], color: string}> = {
+        "Energy": {
+          keywords: ["high energy", "nightclub", "packed", "party", "dance", "energetic"],
+          color: "orange"
+        },
+        "Atmosphere": {
+          keywords: ["open-air", "rooftop", "terrace", "lounge", "intimate", "casual", "chill"],
+          color: "teal"
+        },
+        "Event Type": {
+          keywords: ["beach", "pool", "dayclub", "brunch", "vip", "exclusive", "luxury", "fine dining"],
+          color: "pink"
+        },
+        "Music Style": {
+          keywords: ["techno", "house", "hip-hop", "r&b", "live", "rock", "indie", "jazz"],
+          color: "indigo"
+        }
+      };
+
+      // Extract individual tags from pipe-separated strings
+      const vibeTags = eventVibeArray
+        .flatMap(vibe => vibe.split('|').map(tag => tag.trim()))
+        .filter(tag => tag);
+
+      const primaries: string[] = [];
+      const secondariesByPrimary: Record<string, string[]> = {};
+      const colorFamilies: string[] = [];
+
+      // Categorize each vibe tag
+      Object.entries(vibeCategories).forEach(([primary, {keywords, color}]) => {
+        const matchingTags = vibeTags.filter(tag =>
+          keywords.some(keyword => tag.toLowerCase().includes(keyword.toLowerCase()))
+        );
+
+        if (matchingTags.length > 0) {
+          primaries.push(primary);
+          secondariesByPrimary[primary] = [...new Set(matchingTags)].sort();
+          colorFamilies.push(color);
+        }
+      });
+
+      if (primaries.length === 0) return null;
+
+      return {
+        primaries,
+        secondariesByPrimary,
+        colorFamilies
+      };
+    };
 
     // Transform data but don't deduplicate yet - we need to filter first
     let venues = data?.map(record => ({
@@ -123,7 +180,8 @@ export async function GET(request: Request) {
       final_instagram: record.venue_final_instagram,
       event_vibe: record.event_vibe,
       event_date: record.event_date,
-      music_genre: record.music_genre,
+      music_genre_processed: record.music_genre_processed,
+      event_vibe_processed: transformEventVibeToProcessed(record.event_vibe), // Transform vibes
       rating: record.venue_rating,
       rating_count: record.venue_rating_count
     })) || [];
@@ -221,16 +279,23 @@ export async function GET(request: Request) {
       console.log('🗓️ DATE FILTERING - Filtered venues count:', venues.length);
     }
 
-    // Apply genre filtering in memory for complex array matching
+    // Apply genre filtering using music_genre_processed primaries
     if (activeGenres.length > 0) {
       console.log('🎵 GENRE FILTERING - Applying in-memory filtering for genres');
+      console.log('🎵 GENRE FILTERING - Selected genres:', activeGenres);
       venues = venues.filter(venue => {
-        if (!venue.category) return false;
+        if (!venue.music_genre_processed?.primaries) return false;
 
-        // Check if selected genre matches venue category
-        return activeGenres.some(selectedGenre =>
-          venue.category.trim().toLowerCase() === selectedGenre.trim().toLowerCase()
+        // Check if any selected genre matches the venue's primary genres
+        const hasMatch = activeGenres.some(selectedGenre =>
+          venue.music_genre_processed.primaries.includes(selectedGenre)
         );
+
+        if (hasMatch) {
+          console.log('🎵 MATCH - Venue:', venue.name, 'Primaries:', venue.music_genre_processed.primaries);
+        }
+
+        return hasMatch;
       });
       console.log('🎵 GENRE FILTERING - Filtered venues count:', venues.length);
     }
@@ -251,7 +316,14 @@ export async function GET(request: Request) {
     console.log('🔄 DEDUPLICATION - Venues after dedup:', venues.length);
 
     // Remove internal fields from final response
-    const venueResponse: VenueResponse[] = venues.map(({event_vibe: _vibe, music_genre: _genre, ...venue}) => venue as VenueResponse);
+    const venueResponse: VenueResponse[] = venues.map(({event_vibe, music_genre, ...venue}) => {
+      // Destructure but don't use these fields
+      void event_vibe;
+      void music_genre;
+      return venue as VenueResponse;
+    });
+
+    console.log('🔄 FINAL RESPONSE - venueResponse length:', venueResponse.length);
 
     return NextResponse.json({
       success: true,
