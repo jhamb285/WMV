@@ -3,15 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
-import { FilterState } from '@/types';
+import { HierarchicalFilterState } from '@/types';
 import FilterSection from './FilterSection';
 import FilterActionBar from './FilterActionBar';
 
 interface FilterBottomSheetProps {
   isOpen: boolean;
   onClose: () => void;
-  filters: FilterState;
-  onFiltersChange: (filters: FilterState) => void;
+  filters: HierarchicalFilterState;
+  onFiltersChange: (filters: HierarchicalFilterState) => void;
   filterOptions: {
     areas: string[];
     vibes: string[];
@@ -21,7 +21,7 @@ interface FilterBottomSheetProps {
 }
 
 interface FilterSectionConfig {
-  id: keyof FilterState;
+  id: string;
   title: string;
   type: 'pills' | 'range' | 'collapsible';
   isCollapsible: boolean;
@@ -38,7 +38,7 @@ const FilterBottomSheet: React.FC<FilterBottomSheetProps> = ({
   filterOptions
 }) => {
   // Temporary filter state for apply/cancel functionality
-  const [tempFilters, setTempFilters] = useState<FilterState>(filters);
+  const [tempFilters, setTempFilters] = useState<HierarchicalFilterState>(filters);
   const [expandedSections, setExpandedSections] = useState<string[]>(['selectedAreas']);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 

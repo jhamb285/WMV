@@ -8,12 +8,12 @@ import {
   MAP_OPTIONS
 } from '@/lib/maps-config';
 // Removed VenueClusterComponent import
-import HorizontalNav from '@/components/navigation/HorizontalNav';
+// import HorizontalNav from '@/components/navigation/HorizontalNav'; // Disabled - needs update to HierarchicalFilterState
 import TopNav from '@/components/navigation/TopNav';
 import HierarchicalFilterContainer from '@/components/filters/HierarchicalFilterContainer';
 import VenueDetailsSidebar from '@/components/venue/VenueDetailsSidebar';
 import VenueFloatingPanel from '@/components/venue/VenueFloatingPanel';
-import FilterBottomSheet from '@/components/filters/FilterBottomSheet';
+// import FilterBottomSheet from '@/components/filters/FilterBottomSheet'; // TODO: Update to HierarchicalFilterState
 import type { MapContainerProps, Venue, HierarchicalFilterState, FilterOptions } from '@/types';
 import { useFilterOptions } from '@/hooks/useFilterOptions';
 import '@/styles/horizontal-nav.css';
@@ -602,8 +602,8 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
         }}
       />
 
-      {/* Filter Bottom Sheet */}
-      <FilterBottomSheet
+      {/* Filter Bottom Sheet - TODO: Update to HierarchicalFilterState */}
+      {/* <FilterBottomSheet
         isOpen={isFilterSheetOpen}
         onClose={() => setIsFilterSheetOpen(false)}
         filters={filters}
@@ -614,7 +614,7 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
           dates: filterOptions?.dates || [],
           genres: filterOptions?.genres || []
         }}
-      />
+      /> */}
 
     </div>
   );

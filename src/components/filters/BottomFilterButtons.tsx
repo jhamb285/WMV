@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, MapPin, Sparkles, Gift, ChevronUp, Music } from 'lucide-react';
-import { VIBE_OPTIONS, OFFER_OPTIONS, GENRE_OPTIONS } from '@/types';
 import type { FilterState } from '@/types';
 import { useFilterOptions } from '@/hooks/useFilterOptions';
 
@@ -19,7 +18,7 @@ const BottomFilterButtons: React.FC<BottomFilterButtonsProps> = ({
   onFiltersChange,
 }) => {
   const [activeFilter, setActiveFilter] = useState<FilterType>(null);
-  const { filterOptions, isLoading, error } = useFilterOptions(filters);
+  const { filterOptions, isLoading, error } = useFilterOptions();
 
   const toggleArea = (area: string) => {
     if (area === 'All Dubai') {
@@ -204,7 +203,7 @@ const BottomFilterButtons: React.FC<BottomFilterButtonsProps> = ({
                     <h3 className="text-white font-semibold text-lg leading-none">Select Vibes</h3>
                   </div>
                   <div className="grid grid-cols-1 gap-3 max-h-[30vh] overflow-y-auto scrollbar-thin">
-                    {VIBE_OPTIONS.map((vibe) => (
+                    {filterOptions.vibes.map((vibe) => (
                       <label key={vibe} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-700/50 cursor-pointer touch-manipulation transition-all duration-200 group">
                         <input
                           type="checkbox"
@@ -229,7 +228,7 @@ const BottomFilterButtons: React.FC<BottomFilterButtonsProps> = ({
                     <h3 className="text-white font-semibold text-lg leading-none">Select Genres</h3>
                   </div>
                   <div className="grid grid-cols-1 gap-3 max-h-[30vh] overflow-y-auto scrollbar-thin">
-                    {GENRE_OPTIONS.map((genre) => (
+                    {filterOptions.genres.map((genre) => (
                       <label key={genre} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-700/50 cursor-pointer touch-manipulation transition-all duration-200 group">
                         <input
                           type="checkbox"
@@ -254,17 +253,8 @@ const BottomFilterButtons: React.FC<BottomFilterButtonsProps> = ({
                     <h3 className="text-white font-semibold text-lg leading-none">Select Offers</h3>
                   </div>
                   <div className="grid grid-cols-1 gap-3 max-h-[30vh] overflow-y-auto scrollbar-thin">
-                    {OFFER_OPTIONS.map((offer) => (
-                      <label key={offer} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-700/50 cursor-pointer touch-manipulation transition-all duration-200 group">
-                        <input
-                          type="checkbox"
-                          checked={filters.activeOffers.includes(offer)}
-                          onChange={() => toggleOffer(offer)}
-                          className="w-5 h-5 rounded border-gray-500 text-yellow-500 focus:ring-yellow-500 focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800"
-                        />
-                        <span className="text-white text-sm font-medium leading-none group-hover:text-yellow-100 flex-1">{offer}</span>
-                      </label>
-                    ))}
+                    {/* Offers coming soon */}
+                    <p className="text-gray-400 text-sm text-center py-4">Offer filters coming soon...</p>
                   </div>
                 </div>
               )}

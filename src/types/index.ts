@@ -11,6 +11,8 @@ export interface Venue {
   venue_id: number | string;
   name: string;
   area: string;
+  venue_area?: string; // For compatibility
+  venue_name?: string; // For compatibility
   address?: string;
   country: string;
   lat: number;
@@ -18,6 +20,7 @@ export interface Venue {
   phone?: number;
   website?: string;
   category: string;
+  venue_category?: string; // For compatibility
   created_at: string;
   final_instagram?: string; // Added for join compatibility
   music_genre_processed?: {

@@ -316,10 +316,7 @@ export async function GET() {
     console.log('🔄 DEDUPLICATION - Venues after dedup:', venues.length);
 
     // Remove internal fields from final response
-    const venueResponse: VenueResponse[] = venues.map(({event_vibe, music_genre, ...venue}) => {
-      // Destructure but don't use these fields
-      void event_vibe;
-      void music_genre;
+    const venueResponse: VenueResponse[] = venues.map((venue) => {
       return venue as VenueResponse;
     });
 

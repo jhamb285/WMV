@@ -56,17 +56,17 @@ export async function POST(request: Request) {
     // Apply genre filter in JavaScript after fetching (since music_genre_processed is JSONB)
     let genreFilterToApply = null;
     if (genres) {
-      genreFilterToApply = Array.isArray(genres) ? genres : genres.split(',').map(g => g.trim());
+      genreFilterToApply = Array.isArray(genres) ? genres : genres.split(',').map((g: string) => g.trim());
     }
 
     let vibeFilterToApply = null;
     if (vibes) {
-      vibeFilterToApply = Array.isArray(vibes) ? vibes : vibes.split(',').map(v => v.trim());
+      vibeFilterToApply = Array.isArray(vibes) ? vibes : vibes.split(',').map((v: string) => v.trim());
     }
 
     if (offers) {
-      const offerList = Array.isArray(offers) ? offers : offers.split(',').map(o => o.trim());
-      const offerConditions = offerList.map(offer => `special_offers.ilike.%${offer}%`).join(',');
+      const offerList = Array.isArray(offers) ? offers : offers.split(',').map((o: string) => o.trim());
+      const offerConditions = offerList.map((offer: string) => `special_offers.ilike.%${offer}%`).join(',');
       query = query.or(offerConditions);
     }
 
@@ -106,7 +106,7 @@ export async function POST(request: Request) {
 
     // Apply dates filter
     if (dates && filteredData) {
-      const dateList = Array.isArray(dates) ? dates : dates.split(',').map(d => d.trim());
+      const dateList = Array.isArray(dates) ? dates : dates.split(',').map((d: string) => d.trim());
       filteredData = filteredData.filter((record: EventRecord) => {
         if (!record.event_date) return false;
 
