@@ -167,7 +167,13 @@ export async function GET() {
 
           // Add secondaries for this primary
           const secondaries = record.music_genre_processed?.secondariesByPrimary?.[primary] || [];
-          secondaries.forEach(sec => genreMap[primary].subcategories.add(sec));
+
+          // If no secondaries exist, add the primary itself as a secondary
+          if (secondaries.length === 0) {
+            genreMap[primary].subcategories.add(primary);
+          } else {
+            secondaries.forEach(sec => genreMap[primary].subcategories.add(sec));
+          }
         });
       }
     });

@@ -7,14 +7,60 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useEvents } from '@/hooks/useEvents';
-import type { Venue, InstagramStory, FilterState } from '@/types';
+import type { Venue, InstagramStory, HierarchicalFilterState, FilterState } from '@/types';
 
 interface VenueDetailsSidebarProps {
   venue: Venue | null;
   isOpen: boolean;
   onClose: () => void;
   stories?: InstagramStory[];
-  filters?: FilterState;
+  filters?: HierarchicalFilterState;
+}
+
+// Convert hierarchical filter state to flat filter state for API calls
+function convertHierarchicalToFlat(hierarchicalState?: HierarchicalFilterState): FilterState {
+  if (!hierarchicalState) {
+    return {
+      selectedAreas: [],
+      activeVibes: [],
+      activeDates: [],
+      activeGenres: [],
+      activeOffers: [],
+      searchQuery: ''
+    };
+  }
+
+  const allActiveGenres: string[] = [];
+  const allActiveVibes: string[] = [];
+
+  // Process genres
+  hierarchicalState.selectedPrimaries.genres.forEach(primary => {
+    const secondaries = hierarchicalState.selectedSecondaries.genres?.[primary] || [];
+    if (secondaries.length > 0) {
+      allActiveGenres.push(...secondaries);
+    } else {
+      allActiveGenres.push(primary);
+    }
+  });
+
+  // Process vibes
+  hierarchicalState.selectedPrimaries.vibes.forEach(primary => {
+    const secondaries = hierarchicalState.selectedSecondaries.vibes?.[primary] || [];
+    if (secondaries.length > 0) {
+      allActiveVibes.push(...secondaries);
+    } else {
+      allActiveVibes.push(primary);
+    }
+  });
+
+  return {
+    selectedAreas: hierarchicalState.selectedAreas,
+    activeVibes: allActiveVibes,
+    activeDates: hierarchicalState.activeDates,
+    activeGenres: allActiveGenres,
+    activeOffers: hierarchicalState.activeOffers,
+    searchQuery: hierarchicalState.searchQuery
+  };
 }
 
 const VenueDetailsSidebar: React.FC<VenueDetailsSidebarProps> = ({
@@ -24,14 +70,19 @@ const VenueDetailsSidebar: React.FC<VenueDetailsSidebarProps> = ({
   stories = [],
   filters
 }) => {
+  // Convert hierarchical filters to flat for API call
+  const flatFilters = convertHierarchicalToFlat(filters);
+
   // Fetch real event data for this venue with applied filters
+  // Only fetch when sidebar is actually open to avoid duplicate API calls
   const { events, isLoading: eventsLoading, error: eventsError } = useEvents({
     venue_name: venue?.name || '',
     limit: 10,
-    genres: filters?.activeGenres || [],
-    vibes: filters?.activeVibes || [],
-    offers: filters?.activeOffers || [],
-    dates: filters?.activeDates || []
+    genres: flatFilters.activeGenres || [],
+    vibes: flatFilters.activeVibes || [],
+    offers: flatFilters.activeOffers || [],
+    dates: flatFilters.activeDates || [],
+    enabled: isOpen && !!venue?.name // Only fetch when sidebar is open and has a venue
   });
 
   // Group events by date

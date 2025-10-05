@@ -165,7 +165,7 @@ export async function GET(request: Request) {
 
     // Transform to expected frontend format
     const transformedData = filteredData?.map(record => ({
-      id: record.event_id,
+      id: record.id,
       created_at: record.event_created_at,
       event_date: record.event_date,
       event_time: record.event_time,
@@ -182,10 +182,23 @@ export async function GET(request: Request) {
       instagram_id: record.instagram_id
     })) || [];
 
+    // Deduplicate events based on event_name + event_date + venue_name
+    // This prevents the same event from appearing multiple times due to OR query matching multiple rows
+    const eventMap = new Map();
+    transformedData.forEach(event => {
+      const eventKey = `${event.event_name || event.artist}_${event.event_date}_${event.venue_name}`.toLowerCase();
+      if (!eventMap.has(eventKey)) {
+        eventMap.set(eventKey, event);
+      }
+    });
+    const deduplicatedData = Array.from(eventMap.values());
+
+    console.log(`📊 Deduplication: ${transformedData.length} events → ${deduplicatedData.length} unique events`);
+
     return NextResponse.json({
       success: true,
-      data: transformedData,
-      message: `Retrieved ${transformedData.length} events from final_1`
+      data: deduplicatedData,
+      message: `Retrieved ${deduplicatedData.length} events from final_1`
     });
   } catch (error) {
     console.error('API Error:', error);

@@ -10,6 +10,7 @@ interface UseEventsOptions {
   vibes?: string[];
   offers?: string[];
   dates?: string[];
+  enabled?: boolean;
 }
 
 // Global cache for events data - persists across component unmounts
@@ -114,15 +115,21 @@ export function useEvents(options: UseEventsOptions = {}) {
   }, [currentOptionsString, options.venue_name]); // Only re-create when the stringified options actually change
 
   useEffect(() => {
+    // Don't fetch if explicitly disabled
+    if (options.enabled === false) {
+      console.log('🚫 FETCH DISABLED - enabled=false');
+      return;
+    }
+
     // Only fetch if options have actually changed and we have meaningful options
     if (optionsRef.current !== currentOptionsString) {
       optionsRef.current = currentOptionsString;
-      
+
       if (options.venue_name || (options.genres && options.genres.length > 0) || (options.vibes && options.vibes.length > 0) || (options.offers && options.offers.length > 0)) {
         fetchEvents();
       }
     }
-  }, [currentOptionsString, fetchEvents]);
+  }, [currentOptionsString, fetchEvents, options.enabled]);
 
   return {
     events,

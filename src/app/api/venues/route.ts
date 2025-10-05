@@ -39,14 +39,14 @@ export async function GET() {
     let query = supabase
       .from('final_1')
       .select(`
-        venue_venue_id,
+        venue_id,
         venue_name_original,
         venue_area,
         venue_address,
         venue_country,
         venue_lat,
         venue_lng,
-        venue_phone_number,
+        venue_phone,
         venue_website,
         venue_category,
         venue_created_at,
@@ -57,7 +57,7 @@ export async function GET() {
         venue_rating,
         venue_rating_count
       `)
-      .not('venue_venue_id', 'is', null) // Only get records with venue data
+      .not('venue_id', 'is', null) // Only get records with venue data
       .not('venue_lat', 'is', null) // Must have coordinates for map
       .not('venue_lng', 'is', null)
       .not('music_genre_processed', 'is', null) // Only get venues with processed genres
@@ -166,14 +166,14 @@ export async function GET() {
 
     // Transform data but don't deduplicate yet - we need to filter first
     let venues = data?.map(record => ({
-      venue_id: record.venue_venue_id,
+      venue_id: record.venue_id,
       name: record.venue_name_original,
       area: record.venue_area,
       address: record.venue_address,
       country: record.venue_country || 'UAE',
       lat: record.venue_lat,
       lng: record.venue_lng,
-      phone: record.venue_phone_number,
+      phone: record.venue_phone,
       website: record.venue_website,
       category: record.venue_category,
       created_at: record.venue_created_at,

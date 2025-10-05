@@ -118,7 +118,7 @@ export interface MapContainerProps {
   venues: Venue[];
   selectedVenue?: Venue | null;
   onVenueSelect: (venue: Venue) => void;
-  filters: FilterState;
+  filters: HierarchicalFilterState;
   isLoading?: boolean;
 }
 
@@ -230,43 +230,7 @@ export const DUBAI_CENTER: LatLng = {
   lng: 55.2708
 };
 
-export const VIBE_OPTIONS = [
-  'Party/Energetic',
-  'Chill/Lounge', 
-  'Live Music',
-  'Rooftop',
-  'Beach Club',
-  'Ladies Night',
-  'Brunch',
-  'Shisha Lounge'
-];
-
-export const OFFER_OPTIONS = [
-  'Happy Hour',
-  'Free Entry',
-  'Ladies Free',
-  'Table Deals',
-  'Bottle Service',
-  'Student Discount',
-  'Group Packages'
-];
-
-export const GENRE_OPTIONS = [
-  'Techno',
-  'House',
-  'Electronic',
-  'Deep House',
-  'Progressive House',
-  'Trance',
-  'EDM',
-  'Hip Hop',
-  'R&B',
-  'Pop',
-  'Rock',
-  'Jazz',
-  'Ambient',
-  'Minimal'
-];
+// Removed hardcoded options - these should come from the API dynamically
 
 // Google Maps Retro Style with POI/Icon Hiding
 export const RETRO_MAP_STYLE: google.maps.MapTypeStyle[] = [

@@ -75,8 +75,40 @@ const HierarchicalFilterContainer: React.FC<HierarchicalFilterContainerProps> = 
     console.log(isCurrentlySelected ? '➖ REMOVING from selection' : '➕ ADDING to selection');
     console.log('📝 New secondaries after toggle:', newSecondaries);
 
+    // If removing the last secondary, keep the primary but remove secondaries
+    // This will revert back to showing all items in that primary category
+    if (newSecondaries.length === 0 && isCurrentlySelected) {
+      console.log('🔄 No secondaries left - keeping primary but removing secondaries');
+      onFiltersChange({
+        ...filters,
+        selectedSecondaries: {
+          ...filters.selectedSecondaries,
+          [type]: Object.fromEntries(
+            Object.entries(filters.selectedSecondaries[type]).filter(([key]) => key !== primary)
+          )
+        }
+      });
+      return;
+    }
+
+    // Ensure primary is in selectedPrimaries and expandedPrimaries when working with secondaries
+    const primaryIsSelected = filters.selectedPrimaries[type].includes(primary);
+    const primaryIsExpanded = filters.expandedPrimaries[type].includes(primary);
+
     const newFilters = {
       ...filters,
+      selectedPrimaries: {
+        ...filters.selectedPrimaries,
+        [type]: primaryIsSelected
+          ? filters.selectedPrimaries[type]
+          : [...filters.selectedPrimaries[type], primary]
+      },
+      expandedPrimaries: {
+        ...filters.expandedPrimaries,
+        [type]: primaryIsExpanded
+          ? filters.expandedPrimaries[type]
+          : [...filters.expandedPrimaries[type], primary]
+      },
       selectedSecondaries: {
         ...filters.selectedSecondaries,
         [type]: {

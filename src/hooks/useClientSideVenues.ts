@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { Venue, FilterState } from '@/types';
+import type { Venue, HierarchicalFilterState, FilterState } from '@/types';
 
 interface UseClientSideVenuesResult {
   allVenues: Venue[];
@@ -10,7 +10,46 @@ interface UseClientSideVenuesResult {
   error: string | null;
 }
 
-export function useClientSideVenues(filters: FilterState): UseClientSideVenuesResult {
+// Convert hierarchical filter state to flat filter state for filtering logic
+function convertHierarchicalToFlat(hierarchicalState: HierarchicalFilterState): FilterState {
+  const allActiveGenres: string[] = [];
+  const allActiveVibes: string[] = [];
+
+  // Process genres
+  hierarchicalState.selectedPrimaries.genres.forEach(primary => {
+    const secondaries = hierarchicalState.selectedSecondaries.genres?.[primary] || [];
+    if (secondaries.length > 0) {
+      // If there are selected secondaries, only include them
+      allActiveGenres.push(...secondaries);
+    } else {
+      // If no secondaries selected, include the primary itself
+      allActiveGenres.push(primary);
+    }
+  });
+
+  // Process vibes
+  hierarchicalState.selectedPrimaries.vibes.forEach(primary => {
+    const secondaries = hierarchicalState.selectedSecondaries.vibes?.[primary] || [];
+    if (secondaries.length > 0) {
+      // If there are selected secondaries, only include them
+      allActiveVibes.push(...secondaries);
+    } else {
+      // If no secondaries selected, include the primary itself
+      allActiveVibes.push(primary);
+    }
+  });
+
+  return {
+    selectedAreas: hierarchicalState.selectedAreas,
+    activeVibes: allActiveVibes,
+    activeDates: hierarchicalState.activeDates,
+    activeGenres: allActiveGenres,
+    activeOffers: hierarchicalState.activeOffers,
+    searchQuery: hierarchicalState.searchQuery
+  };
+}
+
+export function useClientSideVenues(filters: HierarchicalFilterState): UseClientSideVenuesResult {
   const [allVenues, setAllVenues] = useState<Venue[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,21 +99,24 @@ export function useClientSideVenues(filters: FilterState): UseClientSideVenuesRe
   const filteredVenues = useMemo(() => {
     if (!allVenues.length) return [];
 
+    // Convert hierarchical state to flat state for filtering
+    const flatFilters = convertHierarchicalToFlat(filters);
+
     console.log('🔍 CLIENT FILTER - Starting filter with:', {
-      areas: filters.selectedAreas,
-      genres: filters.activeGenres,
-      vibes: filters.activeVibes,
-      dates: filters.activeDates,
-      search: filters.searchQuery
+      areas: flatFilters.selectedAreas,
+      genres: flatFilters.activeGenres,
+      vibes: flatFilters.activeVibes,
+      dates: flatFilters.activeDates,
+      search: flatFilters.searchQuery
     });
 
     return allVenues.filter(venue => {
       // Apply area filter
-      if (filters.selectedAreas?.length > 0 && !filters.selectedAreas.includes('All Dubai')) {
+      if (flatFilters.selectedAreas?.length > 0 && !flatFilters.selectedAreas.includes('All Dubai')) {
         const venueArea = venue.area || venue.venue_area;
         if (!venueArea) return false;
 
-        const matchesArea = filters.selectedAreas.some(selectedArea => {
+        const matchesArea = flatFilters.selectedAreas.some(selectedArea => {
           if (selectedArea === 'JBR') {
             return venueArea.toLowerCase().includes('jumeirah beach residence') ||
                    venueArea.toLowerCase().includes('jbr');
@@ -86,14 +128,14 @@ export function useClientSideVenues(filters: FilterState): UseClientSideVenuesRe
       }
 
       // Apply genre filter using music_genre_processed primaries AND secondaries
-      if (filters.activeGenres?.length > 0) {
+      if (flatFilters.activeGenres?.length > 0) {
         if (!venue.music_genre_processed?.primaries) {
           console.log('🎵 FILTER - Venue excluded (no processed genres):', venue.name);
           return false;
         }
 
-        // ALL selected genres must match (AND logic)
-        const allGenresMatch = filters.activeGenres.every(selectedGenre => {
+        // ANY selected genre must match (OR logic)
+        const anyGenreMatches = flatFilters.activeGenres.some(selectedGenre => {
           // Check if it's a primary
           if (venue.music_genre_processed!.primaries.includes(selectedGenre)) {
             console.log('  ✅ Genre match (primary):', selectedGenre, 'in', venue.name);
@@ -112,8 +154,8 @@ export function useClientSideVenues(filters: FilterState): UseClientSideVenuesRe
           return false;
         });
 
-        if (!allGenresMatch) {
-          console.log('🎵 FILTER - Venue excluded (not all genres match):', venue.name, 'Primaries:', venue.music_genre_processed.primaries, 'Secondaries:', venue.music_genre_processed.secondariesByPrimary, 'Selected:', filters.activeGenres);
+        if (!anyGenreMatches) {
+          console.log('🎵 FILTER - Venue excluded (no matching genres):', venue.name, 'Primaries:', venue.music_genre_processed.primaries, 'Secondaries:', venue.music_genre_processed.secondariesByPrimary, 'Selected:', flatFilters.activeGenres);
           return false;
         }
 
@@ -121,14 +163,14 @@ export function useClientSideVenues(filters: FilterState): UseClientSideVenuesRe
       }
 
       // Apply vibe filter using event_vibe_processed primaries AND secondaries
-      if (filters.activeVibes?.length > 0) {
+      if (flatFilters.activeVibes?.length > 0) {
         if (!venue.event_vibe_processed?.primaries) {
           console.log('🎯 FILTER - Venue excluded (no processed vibes):', venue.name);
           return false;
         }
 
-        // ALL selected vibes must match (AND logic)
-        const allVibesMatch = filters.activeVibes.every(selectedVibe => {
+        // ANY selected vibe must match (OR logic)
+        const anyVibeMatches = flatFilters.activeVibes.some(selectedVibe => {
           // Check if it's a primary
           if (venue.event_vibe_processed!.primaries.includes(selectedVibe)) {
             return true;
@@ -144,8 +186,8 @@ export function useClientSideVenues(filters: FilterState): UseClientSideVenuesRe
           return false;
         });
 
-        if (!allVibesMatch) {
-          console.log('🎯 FILTER - Venue excluded (not all vibes match):', venue.name, 'Primaries:', venue.event_vibe_processed.primaries, 'Selected:', filters.activeVibes);
+        if (!anyVibeMatches) {
+          console.log('🎯 FILTER - Venue excluded (no matching vibes):', venue.name, 'Primaries:', venue.event_vibe_processed.primaries, 'Selected:', flatFilters.activeVibes);
           return false;
         }
 
@@ -153,11 +195,11 @@ export function useClientSideVenues(filters: FilterState): UseClientSideVenuesRe
       }
 
       // Apply date filter (skip for venues, this is for events)
-      // if (filters.activeDates?.length > 0) { ... }
+      // if (flatFilters.activeDates?.length > 0) { ... }
 
       // Apply search query
-      if (filters.searchQuery && filters.searchQuery.trim()) {
-        const query = filters.searchQuery.toLowerCase();
+      if (flatFilters.searchQuery && flatFilters.searchQuery.trim()) {
+        const query = flatFilters.searchQuery.toLowerCase();
         const venueName = venue.venue_name?.toLowerCase() || '';
         const venueCategory = venue.category?.toLowerCase() || venue.venue_category?.toLowerCase() || '';
 

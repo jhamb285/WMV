@@ -14,12 +14,12 @@ import HierarchicalFilterContainer from '@/components/filters/HierarchicalFilter
 import VenueDetailsSidebar from '@/components/venue/VenueDetailsSidebar';
 import VenueFloatingPanel from '@/components/venue/VenueFloatingPanel';
 import FilterBottomSheet from '@/components/filters/FilterBottomSheet';
-import type { MapContainerProps, FilterState, Venue, HierarchicalFilterState, FilterOptions } from '@/types';
+import type { MapContainerProps, Venue, HierarchicalFilterState, FilterOptions } from '@/types';
 import { useFilterOptions } from '@/hooks/useFilterOptions';
 import '@/styles/horizontal-nav.css';
 
 interface ExtendedMapContainerProps extends MapContainerProps {
-  onFiltersChange: (filters: FilterState) => void;
+  onFiltersChange: (filters: HierarchicalFilterState) => void;
   'data-testid'?: string;
 }
 
@@ -36,65 +36,9 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
   console.log('🚨 MAP CONTAINER RENDER - Component is rendering!');
   console.log('🚨 MAP CONTAINER RENDER - Filters:', filters);
 
-  // Convert FilterState to HierarchicalFilterState
-  const convertToHierarchical = (filterState: FilterState): HierarchicalFilterState => {
-    return {
-      selectedPrimaries: {
-        genres: filterState.activeGenres,
-        vibes: filterState.activeVibes
-      },
-      selectedSecondaries: {
-        genres: {},
-        vibes: {}
-      },
-      expandedPrimaries: {
-        genres: filterState.activeGenres,
-        vibes: filterState.activeVibes
-      },
-      selectedAreas: filterState.selectedAreas,
-      activeDates: filterState.activeDates,
-      activeOffers: filterState.activeOffers,
-      searchQuery: filterState.searchQuery
-    };
-  };
-
-  // Convert HierarchicalFilterState back to FilterState
-  const convertFromHierarchical = (hierarchicalState: HierarchicalFilterState): FilterState => {
-    console.log('🚀 === CONVERSION START ===');
-    console.log('📥 Input hierarchical state:', hierarchicalState);
-
-    // Combine primaries AND secondaries into flat arrays for filtering
-    const genrePrimaries = hierarchicalState.selectedPrimaries.genres;
-    const genreSecondaries = Object.values(hierarchicalState.selectedSecondaries.genres || {}).flat();
-    const allActiveGenres = [...genrePrimaries, ...genreSecondaries];
-
-    const vibePrimaries = hierarchicalState.selectedPrimaries.vibes;
-    const vibeSecondaries = Object.values(hierarchicalState.selectedSecondaries.vibes || {}).flat();
-    const allActiveVibes = [...vibePrimaries, ...vibeSecondaries];
-
-    console.log('🎵 genrePrimaries:', genrePrimaries);
-    console.log('🎸 genreSecondaries:', genreSecondaries);
-    console.log('🎼 allActiveGenres:', allActiveGenres);
-    console.log('📋 allActiveGenres DETAILED:', allActiveGenres.map((g, i) => `[${i}] = "${g}"`).join(', '));
-    console.log('✨ vibePrimaries:', vibePrimaries);
-    console.log('💫 vibeSecondaries:', vibeSecondaries);
-    console.log('🌟 allActiveVibes:', allActiveVibes);
-
-    return {
-      selectedAreas: hierarchicalState.selectedAreas,
-      activeVibes: allActiveVibes,
-      activeDates: hierarchicalState.activeDates,
-      activeGenres: allActiveGenres,
-      activeOffers: hierarchicalState.activeOffers,
-      searchQuery: hierarchicalState.searchQuery
-    };
-  };
-
   const handleHierarchicalFiltersChange = (hierarchicalFilters: HierarchicalFilterState) => {
     console.log('📍 HIERARCHICAL CHANGE - Handler called with:', hierarchicalFilters);
-    const convertedFilters = convertFromHierarchical(hierarchicalFilters);
-    console.log('📍 HIERARCHICAL CHANGE - Converted to flat:', convertedFilters);
-    onFiltersChange(convertedFilters);
+    onFiltersChange(hierarchicalFilters);
   };
   // Use useLoadScript to load Google Maps - MUST be at the top before any conditionals
   const { isLoaded, loadError } = useLoadScript({
@@ -564,8 +508,8 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
               }}
               className={`nav-circle ${
                 (!filters.selectedAreas.includes('All Dubai') || filters.selectedAreas.length > 1) ||
-                filters.activeVibes.length > 0 ||
-                filters.activeGenres.length > 0
+                filters.selectedPrimaries.vibes.length > 0 ||
+                filters.selectedPrimaries.genres.length > 0
                   ? 'nav-has-filters'
                   : ''
               }`}
@@ -587,7 +531,7 @@ const MapContainer: React.FC<ExtendedMapContainerProps> = ({
         return null;
       })()}
       <HierarchicalFilterContainer
-        filters={convertToHierarchical(filters)}
+        filters={filters}
         onFiltersChange={handleHierarchicalFiltersChange}
         filterOptions={filterOptions as FilterOptions}
       />

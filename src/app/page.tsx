@@ -5,18 +5,28 @@ import MapContainer from '@/components/map/MapContainer';
 import WelcomePopup from '@/components/onboarding/WelcomePopup';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useClientSideVenues } from '@/hooks/useClientSideVenues';
-import { type Venue, type FilterState } from '@/types';
+import { type Venue, type HierarchicalFilterState } from '@/types';
 
 export default function Home() {
 
 
-  const [filters, setFilters] = useState<FilterState>({
+  const [filters, setFilters] = useState<HierarchicalFilterState>({
+    selectedPrimaries: {
+      genres: [],
+      vibes: []
+    },
+    selectedSecondaries: {
+      genres: {},
+      vibes: {}
+    },
+    expandedPrimaries: {
+      genres: [],
+      vibes: []
+    },
     selectedAreas: ['All Dubai'],
-    activeVibes: [],
-    activeDates: [], // No date filter by default - show all events
-    activeGenres: [],
+    activeDates: [],
     activeOffers: [],
-    searchQuery: '',
+    searchQuery: ''
   });
 
   // Use client-side filtering for instant performance
@@ -54,7 +64,7 @@ export default function Home() {
   const handleVenueSelect = (_venue: Venue) => {
   };
 
-  const handleFiltersChange = (newFilters: FilterState) => {
+  const handleFiltersChange = (newFilters: HierarchicalFilterState) => {
     setFilters(newFilters);
   };
 

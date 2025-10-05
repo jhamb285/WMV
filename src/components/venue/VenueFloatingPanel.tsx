@@ -7,16 +7,62 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useEvents } from '@/hooks/useEvents';
 import { useTheme } from '@/contexts/ThemeContext';
-import type { Venue, FilterState, InstagramStory } from '@/types';
+import type { Venue, HierarchicalFilterState, FilterState, InstagramStory } from '@/types';
 
 interface VenueFloatingPanelProps {
   venue: Venue | null;
   isOpen: boolean;
   onClose: () => void;
-  filters?: FilterState;
+  filters?: HierarchicalFilterState;
   stories?: InstagramStory[];
   onViewDetails?: () => void;
-  onFiltersChange?: (filters: FilterState) => void;
+  onFiltersChange?: (filters: HierarchicalFilterState) => void;
+}
+
+// Convert hierarchical filter state to flat filter state for API calls
+function convertHierarchicalToFlat(hierarchicalState?: HierarchicalFilterState): FilterState {
+  if (!hierarchicalState) {
+    return {
+      selectedAreas: [],
+      activeVibes: [],
+      activeDates: [],
+      activeGenres: [],
+      activeOffers: [],
+      searchQuery: ''
+    };
+  }
+
+  const allActiveGenres: string[] = [];
+  const allActiveVibes: string[] = [];
+
+  // Process genres
+  hierarchicalState.selectedPrimaries.genres.forEach(primary => {
+    const secondaries = hierarchicalState.selectedSecondaries.genres?.[primary] || [];
+    if (secondaries.length > 0) {
+      allActiveGenres.push(...secondaries);
+    } else {
+      allActiveGenres.push(primary);
+    }
+  });
+
+  // Process vibes
+  hierarchicalState.selectedPrimaries.vibes.forEach(primary => {
+    const secondaries = hierarchicalState.selectedSecondaries.vibes?.[primary] || [];
+    if (secondaries.length > 0) {
+      allActiveVibes.push(...secondaries);
+    } else {
+      allActiveVibes.push(primary);
+    }
+  });
+
+  return {
+    selectedAreas: hierarchicalState.selectedAreas,
+    activeVibes: allActiveVibes,
+    activeDates: hierarchicalState.activeDates,
+    activeGenres: allActiveGenres,
+    activeOffers: hierarchicalState.activeOffers,
+    searchQuery: hierarchicalState.searchQuery
+  };
 }
 
 const VenueFloatingPanel: React.FC<VenueFloatingPanelProps> = ({
@@ -31,15 +77,20 @@ const VenueFloatingPanel: React.FC<VenueFloatingPanelProps> = ({
   // Get theme context
   const { isDarkMode } = useTheme();
 
+  // Convert hierarchical filters to flat for API call
+  const flatFilters = convertHierarchicalToFlat(filters);
+
   // Fetch real event data for this venue with applied filters (now with caching!)
   // NOTE: Don't pass dates filter here - we want ALL dates to show in the date buttons
+  // Only fetch when panel is actually open to avoid duplicate API calls
   const { events, isLoading: eventsLoading, error: eventsError } = useEvents({
     venue_name: venue?.name || '',
     limit: 50, // Increased to get more events across different dates
-    genres: filters?.activeGenres || [],
-    vibes: filters?.activeVibes || [],
-    offers: filters?.activeOffers || []
-    // dates: filters?.activeDates || [] ← REMOVED so all dates are fetched
+    genres: flatFilters.activeGenres || [],
+    vibes: flatFilters.activeVibes || [],
+    offers: flatFilters.activeOffers || [],
+    enabled: isOpen && !!venue?.name // Only fetch when panel is open and has a venue
+    // dates: flatFilters.activeDates || [] ← REMOVED so all dates are fetched
   });
 
   // Group events by date
@@ -199,7 +250,7 @@ const VenueFloatingPanel: React.FC<VenueFloatingPanelProps> = ({
                           /* Single Event */
                           <div className="w-full h-full">
                             {selectedRightPanelEvents.map((event, index) => (
-                              <div key={event.id || `event-${index}`} className={`backdrop-blur-sm rounded-lg p-3 w-full h-full relative before:absolute before:inset-0 before:pointer-events-none before:rounded-lg
+                              <div key={`${event.id}-${event.event_date}-${index}`} className={`backdrop-blur-sm rounded-lg p-3 w-full h-full relative before:absolute before:inset-0 before:pointer-events-none before:rounded-lg
                                    ${isDarkMode
                                      ? 'bg-gray-800/60 border border-gray-600/30 before:bg-gradient-to-br before:from-gray-700/10 before:to-gray-800/20'
                                      : 'bg-white/60 border border-gray-300/30 before:bg-gradient-to-br before:from-white/10 before:to-gray-100/20'
@@ -257,7 +308,7 @@ const VenueFloatingPanel: React.FC<VenueFloatingPanelProps> = ({
                           <div className="w-full h-full overflow-y-auto">
                             <div className="space-y-2">
                               {selectedRightPanelEvents.map((event, index) => (
-                                <div key={event.id || `event-${index}`} className={`backdrop-blur-sm rounded-lg p-3 w-full relative before:absolute before:inset-0 before:pointer-events-none before:rounded-lg
+                                <div key={`${event.id}-${event.event_date}-${index}`} className={`backdrop-blur-sm rounded-lg p-3 w-full relative before:absolute before:inset-0 before:pointer-events-none before:rounded-lg
                                      ${isDarkMode
                                        ? 'bg-gray-800/60 border border-gray-600/30 before:bg-gradient-to-br before:from-gray-700/10 before:to-gray-800/20'
                                        : 'bg-white/60 border border-gray-300/30 before:bg-gradient-to-br before:from-white/10 before:to-gray-100/20'
