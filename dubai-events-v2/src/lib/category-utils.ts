@@ -1,12 +1,12 @@
 // Category Utility Functions
 
-import type { Event, EventCategory } from '@/types';
+import type { Event, EventCategory, Venue } from '@/types';
 import { PRIMARY_CATEGORY_MAP, getAllPrimaryCategories } from './category-mappings';
 
 /**
- * Get event categories from an event object
+ * Get event categories from an event or venue object
  */
-export function getEventCategories(event: Event | null | undefined): EventCategory[] {
+export function getEventCategories(event: Event | Venue | null | undefined): EventCategory[] {
   if (!event) return [];
   return event.event_categories || [];
 }
