@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Venues API</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .venue { 
+            border: 1px solid #ccc; 
+            margin: 10px 0; 
+            padding: 10px; 
+            border-radius: 5px; 
+        }
+        .error { color: red; }
+        .success { color: green; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>Dubai Events - Venues Debug</h1>
+    <div id="status">Loading...</div>
+    <div id="venues"></div>
+
+    <script>
+        async function debugVenues() {
+            const statusDiv = document.getElementById('status');
+            const venuesDiv = document.getElementById('venues');
+            
+            try {
+                statusDiv.innerHTML = '<span class="info">Fetching venues from API...</span>';
+                
+                const response = await fetch('http://localhost:3004/api/venues');
+                const data = await response.json();
+                
+                if (data.success) {
+                    statusDiv.innerHTML = `<span class="success">✅ Successfully loaded ${data.data.length} venues</span>`;
+                    
+                    // Check each venue has required fields
+                    let validVenues = 0;
+                    let invalidVenues = [];
+                    
+                    data.data.forEach((venue, index) => {
+                        const hasRequiredFields = venue.venue_id && venue.name && venue.lat && venue.lng;
+                        
+                        if (hasRequiredFields) {
+                            validVenues++;
+                        } else {
+                            invalidVenues.push({
+                                index,
+                                venue,
+                                missing: {
+                                    venue_id: !venue.venue_id,
+                                    name: !venue.name,
+                                    lat: !venue.lat,
+                                    lng: !venue.lng
+                                }
+                            });
+                        }
+                        
+                        // Show first 5 venues
+                        if (index < 5) {
+                            const venueDiv = document.createElement('div');
+                            venueDiv.className = 'venue';
+                            venueDiv.innerHTML = `
+                                <h3>${venue.name || 'NO NAME'} (ID: ${venue.venue_id || 'NO ID'})</h3>
+                                <p><strong>Area:</strong> ${venue.area || 'N/A'}</p>
+                                <p><strong>Coordinates:</strong> ${venue.lat || 'NO LAT'}, ${venue.lng || 'NO LNG'}</p>
+                                <p><strong>Category:</strong> ${venue.category || 'N/A'}</p>
+                                <p><strong>Valid for mapping:</strong> ${hasRequiredFields ? '✅ Yes' : '❌ No'}</p>
+                            `;
+                            venuesDiv.appendChild(venueDiv);
+                        }
+                    });
+                    
+                    // Add summary
+                    const summaryDiv = document.createElement('div');
+                    summaryDiv.innerHTML = `
+                        <h2>Summary</h2>
+                        <p><strong>Total venues:</strong> ${data.data.length}</p>
+                        <p><strong>Valid for mapping:</strong> ${validVenues}</p>
+                        <p><strong>Invalid venues:</strong> ${invalidVenues.length}</p>
+                        ${invalidVenues.length > 0 ? `<p class="error">Invalid venues: ${JSON.stringify(invalidVenues, null, 2)}</p>` : ''}
+                    `;
+                    venuesDiv.appendChild(summaryDiv);
+                    
+                } else {
+                    statusDiv.innerHTML = `<span class="error">❌ API Error: ${data.error || 'Unknown error'}</span>`;
+                }
+                
+            } catch (error) {
+                statusDiv.innerHTML = `<span class="error">❌ Network Error: ${error.message}</span>`;
+            }
+        }
+        
+        debugVenues();
+    </script>
+</body>
+</html>

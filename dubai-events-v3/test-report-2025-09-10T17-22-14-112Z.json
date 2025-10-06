@@ -1,0 +1,168 @@
+{
+  "timestamp": "2025-09-10T17:22:19.186Z",
+  "testResults": {
+    "pageLoaded": true,
+    "loadError": "",
+    "pageTitle": "NIGHTP - Dubai Event Discovery",
+    "pageUrl": "http://localhost:3000/",
+    "googleMapsLoaded": true,
+    "mapVisible": true,
+    "markersCount": 133
+  },
+  "consoleErrors": [],
+  "networkFailures": [],
+  "networkRequestsCount": 72,
+  "apiRequestsCount": 15,
+  "venuesApiRequestsCount": 1,
+  "responses": [
+    {
+      "url": "http://localhost:3000/api/venues?t=1757524927920",
+      "error": "response.allHeaders is not a function"
+    },
+    {
+      "url": "https://maps.googleapis.com/maps/api/js?key=AIzaSyDOK9Sleqeolsv2mGlkHog-A9u6pchj4L8&v=weekly&language=en&region=AE&libraries=geometry,places&loading=async&callback=initMap",
+      "error": "response.allHeaders is not a function"
+    },
+    {
+      "url": "http://localhost:3000/api/filter-options",
+      "error": "response.allHeaders is not a function"
+    },
+    {
+      "url": "http://localhost:3000/api/filter-options",
+      "error": "response.allHeaders is not a function"
+    },
+    {
+      "url": "https://maps.googleapis.com/maps-api-v3/api/js/62/3c/places.js",
+      "error": "response.allHeaders is not a function"
+    },
+    {
+      "url": "https://maps.googleapis.com/maps-api-v3/api/js/62/3c/geometry.js",
+      "error": "response.allHeaders is not a function"
+    },
+    {
+      "url": "https://maps.googleapis.com/maps-api-v3/api/js/62/3c/main.js",
+      "error": "response.allHeaders is not a function"
+    },
+    {
+      "url": "https://maps.googleapis.com/maps/api/mapsjs/gen_204?csp_test=true",
+      "error": "response.allHeaders is not a function"
+    },
+    {
+      "url": "https://maps.googleapis.com/maps-api-v3/api/js/62/3c/common.js",
+      "error": "response.allHeaders is not a function"
+    },
+    {
+      "url": "https://maps.googleapis.com/maps-api-v3/api/js/62/3c/util.js",
+      "error": "response.allHeaders is not a function"
+    }
+  ],
+  "elementsFound": {
+    "navigation": 0,
+    "buttons": 11,
+    "searchBox": 0,
+    "filterOptions": 0
+  },
+  "screenshot": "dubai-events-test-2025-09-10T17-22-14-112Z.png",
+  "allNetworkRequests": [
+    {
+      "url": "http://localhost:3000/",
+      "method": "GET",
+      "timestamp": "2025-09-10T17:22:07.165Z"
+    },
+    {
+      "url": "http://localhost:3000/_next/static/media/797e433ab948586e-s.p.dbea232f.woff2",
+      "method": "GET",
+      "timestamp": "2025-09-10T17:22:07.255Z"
+    },
+    {
+      "url": "http://localhost:3000/_next/static/media/caa3a2e1cccd8315-s.p.6435ea53.woff2",
+      "method": "GET",
+      "timestamp": "2025-09-10T17:22:07.255Z"
+    },
+    {
+      "url": "http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__0f0ba101._.css",
+      "method": "GET",
+      "timestamp": "2025-09-10T17:22:07.336Z"
+    },
+    {
+      "url": "http://localhost:3000/_next/static/chunks/src_styles_horizontal-nav_15c55418.css",
+      "method": "GET",
+      "timestamp": "2025-09-10T17:22:07.336Z"
+    },
+    {
+      "url": "http://localhost:3000/_next/static/chunks/%5Bturbopack%5D_browser_dev_hmr-client_hmr-client_ts_57d40746._.js",
+      "method": "GET",
+      "timestamp": "2025-09-10T17:22:07.336Z"
+    },
+    {
+      "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js",
+      "method": "GET",
+      "timestamp": "2025-09-10T17:22:07.336Z"
+    },
+    {
+      "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_next-devtools_index_a9cb0712.js",
+      "method": "GET",
+      "timestamp": "2025-09-10T17:22:07.336Z"
+    },
+    {
+      "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_5150ccfd._.js",
+      "method": "GET",
+      "timestamp": "2025-09-10T17:22:07.336Z"
+    },
+    {
+      "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_cf1d9188._.js",
+      "method": "GET",
+      "timestamp": "2025-09-10T17:22:07.336Z"
+    },
+    {
+      "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_b0daae9a._.js",
+      "method": "GET",
+      "timestamp": "2025-09-10T17:22:07.336Z"
+    },
+    {
+      "url": "http://localhost:3000/_next/static/chunks/node_modules_%40swc_helpers_cjs_b3dc30d6._.js",
+      "method": "GET",
+      "timestamp": "2025-09-10T17:22:07.336Z"
+    },
+    {
+      "url": "http://localhost:3000/_next/static/chunks/_a0ff3932._.js",
+      "method": "GET",
+      "timestamp": "2025-09-10T17:22:07.336Z"
+    },
+    {
+      "url": "http://localhost:3000/_next/static/chunks/turbopack-_cdba956c._.js",
+      "method": "GET",
+      "timestamp": "2025-09-10T17:22:07.336Z"
+    },
+    {
+      "url": "http://localhost:3000/_next/static/chunks/node_modules_next_dist_8db7fb1f._.js",
+      "method": "GET",
+      "timestamp": "2025-09-10T17:22:07.336Z"
+    },
+    {
+      "url": "http://localhost:3000/_next/static/chunks/src_app_favicon_ico_mjs_243aa161._.js",
+      "method": "GET",
+      "timestamp": "2025-09-10T17:22:07.336Z"
+    },
+    {
+      "url": "http://localhost:3000/_next/static/chunks/src_app_layout_tsx_0a548d63._.js",
+      "method": "GET",
+      "timestamp": "2025-09-10T17:22:07.336Z"
+    },
+    {
+      "url": "http://localhost:3000/_next/static/chunks/src_81f0ae5f._.js",
+      "method": "GET",
+      "timestamp": "2025-09-10T17:22:07.431Z"
+    },
+    {
+      "url": "http://localhost:3000/_next/static/chunks/node_modules_%40react-google-maps_api_dist_esm_8814a7d0.js",
+      "method": "GET",
+      "timestamp": "2025-09-10T17:22:07.431Z"
+    },
+    {
+      "url": "http://localhost:3000/_next/static/chunks/node_modules_motion-dom_dist_es_da948acf._.js",
+      "method": "GET",
+      "timestamp": "2025-09-10T17:22:07.431Z"
+    }
+  ]
+}

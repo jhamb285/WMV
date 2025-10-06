@@ -1,0 +1,337 @@
+'use client';
+
+import { useState, useEffect, useMemo } from 'react';
+import type { Venue, HierarchicalFilterState, FilterState } from '@/types';
+import { getEventCategories } from '@/lib/category-utils';
+
+interface UseClientSideVenuesResult {
+  allVenues: Venue[];
+  filteredVenues: Venue[];
+  isLoading: boolean;
+  error: string | null;
+}
+
+// Convert hierarchical filter state to flat filter state for filtering logic
+function convertHierarchicalToFlat(hierarchicalState: HierarchicalFilterState): FilterState {
+  const allActiveGenres: string[] = [];
+  const allActiveVibes: string[] = [];
+
+  // Process genres
+  hierarchicalState.selectedPrimaries.genres.forEach(primary => {
+    const secondaries = hierarchicalState.selectedSecondaries.genres?.[primary] || [];
+    if (secondaries.length > 0) {
+      // If there are selected secondaries, only include them
+      allActiveGenres.push(...secondaries);
+    } else {
+      // If no secondaries selected, include the primary itself
+      allActiveGenres.push(primary);
+    }
+  });
+
+  // Process vibes
+  hierarchicalState.selectedPrimaries.vibes.forEach(primary => {
+    const secondaries = hierarchicalState.selectedSecondaries.vibes?.[primary] || [];
+    if (secondaries.length > 0) {
+      // If there are selected secondaries, only include them
+      allActiveVibes.push(...secondaries);
+    } else {
+      // If no secondaries selected, include the primary itself
+      allActiveVibes.push(primary);
+    }
+  });
+
+  return {
+    selectedAreas: hierarchicalState.selectedAreas,
+    activeVibes: allActiveVibes,
+    activeDates: hierarchicalState.activeDates,
+    activeGenres: allActiveGenres,
+    activeOffers: hierarchicalState.activeOffers,
+    searchQuery: hierarchicalState.searchQuery
+  };
+}
+
+export function useClientSideVenues(filters: HierarchicalFilterState): UseClientSideVenuesResult {
+  const [allVenues, setAllVenues] = useState<Venue[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load all venues once on mount
+  useEffect(() => {
+    const fetchAllVenues = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+
+        const response = await fetch('/api/venues', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (result.success && result.data) {
+          setAllVenues(result.data);
+          setError(null);
+        } else {
+          const errorMsg = result.error || 'Invalid response format';
+          setError(errorMsg);
+        }
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Network error occurred';
+        setError(errorMsg);
+        console.error('Error fetching venues:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAllVenues();
+  }, []); // Only load once on mount
+
+  // Filter venues client-side - this runs instantly
+  const filteredVenues = useMemo(() => {
+    if (!allVenues.length) return [];
+
+    // Convert hierarchical state to flat state for filtering
+    const flatFilters = convertHierarchicalToFlat(filters);
+
+    console.log('🔍 CLIENT FILTER - Starting filter with:', {
+      areas: flatFilters.selectedAreas,
+      genres: flatFilters.activeGenres,
+      vibes: flatFilters.activeVibes,
+      dates: flatFilters.activeDates,
+      search: flatFilters.searchQuery,
+      eventCategories: filters.eventCategories,
+      attributes: filters.attributes
+    });
+
+    return allVenues.filter(venue => {
+      // Apply area filter
+      if (flatFilters.selectedAreas?.length > 0 && !flatFilters.selectedAreas.includes('All Dubai')) {
+        const venueArea = venue.area || venue.venue_area;
+        if (!venueArea) return false;
+
+        const matchesArea = flatFilters.selectedAreas.some(selectedArea => {
+          if (selectedArea === 'JBR') {
+            return venueArea.toLowerCase().includes('jumeirah beach residence') ||
+                   venueArea.toLowerCase().includes('jbr');
+          }
+          return venueArea.toLowerCase().includes(selectedArea.toLowerCase());
+        });
+
+        if (!matchesArea) return false;
+      }
+
+      // Apply genre filter using music_genre_processed primaries AND secondaries
+      if (flatFilters.activeGenres?.length > 0) {
+        if (!venue.music_genre_processed?.primaries) {
+          console.log('🎵 FILTER - Venue excluded (no processed genres):', venue.name);
+          return false;
+        }
+
+        // ANY selected genre must match (OR logic)
+        const anyGenreMatches = flatFilters.activeGenres.some(selectedGenre => {
+          // Check if it's a primary
+          if (venue.music_genre_processed!.primaries.includes(selectedGenre)) {
+            console.log('  ✅ Genre match (primary):', selectedGenre, 'in', venue.name);
+            return true;
+          }
+
+          // Check if it's a secondary
+          for (const [primary, secondaries] of Object.entries(venue.music_genre_processed!.secondariesByPrimary || {})) {
+            if (secondaries.includes(selectedGenre)) {
+              console.log('  ✅ Genre match (secondary):', selectedGenre, 'under', primary, 'in', venue.name);
+              return true;
+            }
+          }
+
+          console.log('  ❌ Genre no match:', selectedGenre, 'in', venue.name);
+          return false;
+        });
+
+        if (!anyGenreMatches) {
+          console.log('🎵 FILTER - Venue excluded (no matching genres):', venue.name, 'Primaries:', venue.music_genre_processed.primaries, 'Secondaries:', venue.music_genre_processed.secondariesByPrimary, 'Selected:', flatFilters.activeGenres);
+          return false;
+        }
+
+        console.log('🎵 FILTER - Venue included:', venue.name, 'Primaries:', venue.music_genre_processed.primaries, 'Secondaries:', venue.music_genre_processed.secondariesByPrimary);
+      }
+
+      // Apply vibe filter using event_vibe_processed primaries AND secondaries
+      if (flatFilters.activeVibes?.length > 0) {
+        if (!venue.event_vibe_processed?.primaries) {
+          console.log('🎯 FILTER - Venue excluded (no processed vibes):', venue.name);
+          return false;
+        }
+
+        // ANY selected vibe must match (OR logic)
+        const anyVibeMatches = flatFilters.activeVibes.some(selectedVibe => {
+          // Check if it's a primary
+          if (venue.event_vibe_processed!.primaries.includes(selectedVibe)) {
+            return true;
+          }
+
+          // Check if it's a secondary
+          for (const secondaries of Object.values(venue.event_vibe_processed!.secondariesByPrimary || {})) {
+            if (secondaries.includes(selectedVibe)) {
+              return true;
+            }
+          }
+
+          return false;
+        });
+
+        if (!anyVibeMatches) {
+          console.log('🎯 FILTER - Venue excluded (no matching vibes):', venue.name, 'Primaries:', venue.event_vibe_processed.primaries, 'Selected:', flatFilters.activeVibes);
+          return false;
+        }
+
+        console.log('🎯 FILTER - Venue included:', venue.name, 'Vibe Primaries:', venue.event_vibe_processed.primaries);
+      }
+
+      // Apply date filter (skip for venues, this is for events)
+      // if (flatFilters.activeDates?.length > 0) { ... }
+
+      // Apply search query
+      if (flatFilters.searchQuery && flatFilters.searchQuery.trim()) {
+        const query = flatFilters.searchQuery.toLowerCase();
+        const venueName = venue.venue_name?.toLowerCase() || '';
+        const venueCategory = venue.category?.toLowerCase() || venue.venue_category?.toLowerCase() || '';
+
+        if (!venueName.includes(query) && !venueCategory.includes(query)) {
+          return false;
+        }
+      }
+
+      // ===== NEW: Event Category Filtering =====
+      // Apply event_categories filter (primary and secondary categories)
+      if (filters.eventCategories && filters.eventCategories.selectedPrimaries.length > 0) {
+        const venueCategories = getEventCategories(venue);
+
+        if (venueCategories.length === 0) {
+          console.log('🏷️ FILTER - Venue excluded (no event_categories):', venue.name);
+          return false;
+        }
+
+        // Event matches if ANY of its categories match the filter (OR logic for multi-category events)
+        const matchesEventCategory = venueCategories.some(cat => {
+          // Check if category's primary is in selected primaries
+          if (!filters.eventCategories!.selectedPrimaries.includes(cat.primary)) {
+            return false;
+          }
+
+          // If no secondaries selected for this primary, primary match is enough
+          const selectedSecondaries = filters.eventCategories!.selectedSecondaries[cat.primary] || [];
+          if (selectedSecondaries.length === 0) {
+            console.log('  ✅ Event Category match (primary only):', cat.primary, 'in', venue.name);
+            return true;
+          }
+
+          // Check if category's secondary matches any selected secondary for this primary
+          if (selectedSecondaries.includes(cat.secondary)) {
+            console.log('  ✅ Event Category match (primary + secondary):', cat.primary, '>', cat.secondary, 'in', venue.name);
+            return true;
+          }
+
+          return false;
+        });
+
+        if (!matchesEventCategory) {
+          console.log('🏷️ FILTER - Venue excluded (no matching event_categories):', venue.name, 'Categories:', venueCategories, 'Selected:', filters.eventCategories);
+          return false;
+        }
+
+        console.log('🏷️ FILTER - Venue included:', venue.name, 'Categories:', venueCategories);
+      }
+
+      // ===== NEW: Attribute Filtering =====
+      // Apply attributes filter (venue, energy, timing, status)
+      if (filters.attributes) {
+        // Check venue attribute
+        if (filters.attributes.venue.length > 0) {
+          if (!venue.attributes?.venue || venue.attributes.venue.length === 0) {
+            console.log('🏢 FILTER - Venue excluded (no venue attributes):', venue.name);
+            return false;
+          }
+
+          const matchesVenueAttr = filters.attributes.venue.some(selectedVenue =>
+            venue.attributes!.venue.includes(selectedVenue)
+          );
+
+          if (!matchesVenueAttr) {
+            console.log('🏢 FILTER - Venue excluded (venue attribute mismatch):', venue.name, 'Has:', venue.attributes.venue, 'Need:', filters.attributes.venue);
+            return false;
+          }
+        }
+
+        // Check energy attribute
+        if (filters.attributes.energy.length > 0) {
+          if (!venue.attributes?.energy || venue.attributes.energy.length === 0) {
+            console.log('⚡ FILTER - Venue excluded (no energy attributes):', venue.name);
+            return false;
+          }
+
+          const matchesEnergyAttr = filters.attributes.energy.some(selectedEnergy =>
+            venue.attributes!.energy.includes(selectedEnergy)
+          );
+
+          if (!matchesEnergyAttr) {
+            console.log('⚡ FILTER - Venue excluded (energy attribute mismatch):', venue.name);
+            return false;
+          }
+        }
+
+        // Check timing attribute
+        if (filters.attributes.timing.length > 0) {
+          if (!venue.attributes?.timing || venue.attributes.timing.length === 0) {
+            console.log('🕐 FILTER - Venue excluded (no timing attributes):', venue.name);
+            return false;
+          }
+
+          const matchesTimingAttr = filters.attributes.timing.some(selectedTiming =>
+            venue.attributes!.timing.includes(selectedTiming)
+          );
+
+          if (!matchesTimingAttr) {
+            console.log('🕐 FILTER - Venue excluded (timing attribute mismatch):', venue.name);
+            return false;
+          }
+        }
+
+        // Check status attribute
+        if (filters.attributes.status.length > 0) {
+          if (!venue.attributes?.status || venue.attributes.status.length === 0) {
+            console.log('🎫 FILTER - Venue excluded (no status attributes):', venue.name);
+            return false;
+          }
+
+          const matchesStatusAttr = filters.attributes.status.some(selectedStatus =>
+            venue.attributes!.status.includes(selectedStatus)
+          );
+
+          if (!matchesStatusAttr) {
+            console.log('🎫 FILTER - Venue excluded (status attribute mismatch):', venue.name);
+            return false;
+          }
+        }
+      }
+
+      return true;
+    });
+  }, [allVenues, filters]);
+
+  return {
+    allVenues,
+    filteredVenues,
+    isLoading,
+    error
+  };
+}
