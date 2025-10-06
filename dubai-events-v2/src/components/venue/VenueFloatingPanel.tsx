@@ -243,7 +243,7 @@ const VenueFloatingPanel: React.FC<VenueFloatingPanelProps> = ({
               stiffness: 300,
               duration: 0.3
             }}
-            className="fixed bottom-4 left-2 right-2 z-60 max-w-2xl mx-auto h-[38.5vh]"
+            className="fixed bottom-1 md:bottom-4 left-2 right-2 z-60 max-w-2xl mx-auto h-[38.5vh]"
           >
             <div className={`backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden h-full relative
                            before:absolute before:inset-0 before:pointer-events-none before:rounded-2xl

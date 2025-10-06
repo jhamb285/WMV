@@ -204,10 +204,10 @@ const CategoryPills: React.FC<CategoryPillsProps> = ({
   return (
     <>
       {/* Dark gradient overlay - starts from top of page */}
-      <div className="fixed top-0 left-0 right-0 h-[200px] bg-gradient-to-b from-black/40 via-black/20 to-transparent pointer-events-none z-39" />
+      <div className="fixed top-0 left-0 right-0 h-[160px] md:h-[200px] bg-gradient-to-b from-black/40 via-black/20 to-transparent pointer-events-none z-39" />
 
       {/* Pills container */}
-      <div className="fixed top-[92px] left-0 right-0 z-40 px-4 pt-1 pb-1">
+      <div className="fixed top-[64px] md:top-[92px] left-0 right-0 z-40 px-2 md:px-4 pt-1 pb-1">
         {/* Primary Category Row */}
         <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {Object.keys(PRIMARY_CATEGORY_MAP).map(category =>
