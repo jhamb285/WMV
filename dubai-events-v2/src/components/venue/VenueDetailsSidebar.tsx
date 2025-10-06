@@ -76,13 +76,13 @@ const VenueDetailsSidebar: React.FC<VenueDetailsSidebarProps> = ({
   // Fetch real event data for this venue with applied filters
   // Only fetch when sidebar is actually open to avoid duplicate API calls
   const { events, isLoading: eventsLoading, error: eventsError } = useEvents({
-    venue_name: venue?.name || '',
+    venue_id: venue?.venue_id ? Number(venue.venue_id) : undefined,
     limit: 10,
     genres: flatFilters.activeGenres || [],
     vibes: flatFilters.activeVibes || [],
     offers: flatFilters.activeOffers || [],
     dates: flatFilters.activeDates || [],
-    enabled: isOpen && !!venue?.name // Only fetch when sidebar is open and has a venue
+    enabled: isOpen && !!venue?.venue_id // Only fetch when sidebar is open and has a venue
   });
 
   // Group events by date
