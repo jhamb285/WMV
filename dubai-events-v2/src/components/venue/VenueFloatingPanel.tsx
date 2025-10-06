@@ -127,7 +127,7 @@ const VenueFloatingPanel: React.FC<VenueFloatingPanelProps> = ({
   // NOTE: Don't pass dates filter here - we want ALL dates to show in the date buttons
   // Only fetch when panel is actually open to avoid duplicate API calls
   const { events, isLoading: eventsLoading, error: eventsError } = useEvents({
-    venue_id: venue?.venue_id || 0, // Use venue_id (place_id) as the primary identifier
+    venue_id: venue?.venue_id ? Number(venue.venue_id) : undefined, // Use venue_id (place_id) as the primary identifier
     limit: 50, // Increased to get more events across different dates
     genres: flatFilters.activeGenres || [],
     vibes: flatFilters.activeVibes || [],
