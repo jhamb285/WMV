@@ -1,0 +1,172 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Input: items[0].json.output -> array of objects OR a JSON string\n// Each object may contain: place_id, mentions (array OR comma/space-separated), cleaned_context/context\n// Output (one item per entry):\n// {\n//   place_id,\n//   mentions: ['@handle1','@handle2', ...],\n//   context: '...',\n//   user_message: { mentions: [...], context: '...' },\n//   user_message_str: '{\"mentions\":[...],\"context\":\"...\"}'\n// }\n\nfunction toArray(x) {\n  if (Array.isArray(x)) return x;\n  if (x == null) return [];\n  return [x];\n}\n\nfunction normalizeMentions(val) {\n  let raw = [];\n  if (Array.isArray(val)) {\n    raw = val;\n  } else if (typeof val === 'string') {\n    // split on commas, pipes, whitespace\n    raw = val.split(/[,|\\s]+/).filter(Boolean);\n  } else {\n    raw = [];\n  }\n\n  const norm = raw\n    .map(s => String(s).trim())\n    .filter(Boolean)\n    // ensure starts with @; allow alnum, underscore, dot (IG handle charset)\n    .map(h => (h.startsWith('@') ? h : '@' + h))\n    .map(h => h.toLowerCase())\n    .filter(h => /^@[a-z0-9._]+$/.test(h));\n\n  // dedupe while preserving order\n  const seen = new Set();\n  const uniq = [];\n  for (const h of norm) {\n    if (!seen.has(h)) { seen.add(h); uniq.push(h); }\n  }\n  return uniq;\n}\n\n// --- Parse input payload ---\nlet entries = items?.[0]?.json?.output ?? [];\nif (typeof entries === 'string') {\n  try { entries = JSON.parse(entries); } catch (e) { entries = []; }\n}\nentries = Array.isArray(entries) ? entries : toArray(entries);\n\n// --- Map to final rows ---\nreturn entries.map(entry => {\n  const place_id = entry?.place_id ?? '';\n  const mentions = normalizeMentions(entry?.mentions);\n  const context = String(entry?.cleaned_context ?? entry?.context ?? '');\n\n  const user_message = { mentions, context };\n  const user_message_str = JSON.stringify(user_message);\n\n  return {\n    json: {\n      place_id,\n      mentions,          // array (for debugging/inspection)\n      context,           // clean text\n      user_message,      // object you can inspect\n      user_message_str   // string to drop into AI node user message\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -496,
+        96
+      ],
+      "id": "d8f33465-3e9e-4fe5-8793-2413b241f3d0",
+      "name": "Cleaning Context Code"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * INPUT can be:\n *  - items[0].json.output -> array (or stringified JSON) of rows like your sample\n *  - or items[] already being rows with { place_id, mentions, context/cleaned_context }\n *\n * OUTPUT: one item per mention, with:\n *  - place_id\n *  - mention                (e.g., \"@thecomedycavedxb\")\n *  - mention_no_at          (e.g., \"thecomedycavedxb\")\n *  - context                (cleaned_context || context)\n *  - context_hint           (short hint used for search; up to ~3 terms)\n *  - query_template         (\"<handle-no-@>\")\n *  - user_message           ({ mentions:[mention], context })\n *  - user_message_str       (stringified JSON to drop into the AI Agent user message)\n */\n\nfunction toArray(x) {\n  if (Array.isArray(x)) return x;\n  if (x == null) return [];\n  return [x];\n}\n\nfunction normalizeMentions(val) {\n  let raw = [];\n  if (Array.isArray(val)) raw = val;\n  else if (typeof val === 'string') raw = val.split(/[,|\\s]+/).filter(Boolean);\n\n  const norm = raw\n    .map(s => String(s).trim())\n    .filter(Boolean)\n    .map(h => (h.startsWith('@') ? h : '@' + h))\n    .map(h => h.toLowerCase())\n    .filter(h => /^@[a-z0-9._]+$/.test(h));\n\n  const seen = new Set();\n  const out = [];\n  for (const h of norm) { if (!seen.has(h)) { seen.add(h); out.push(h); } }\n  return out;\n}\n\n// very light context hint: keep up to 3 informative words (no punctuation/short stopwords)\nfunction buildContextHint(txt, maxTerms = 2) {\n  if (!txt) return '';\n  const stop = new Set(['the','a','an','and','or','in','of','to','for','at','on','by','with','from','this','that','is','are','be','we','you','our','your','their','dubai']); // tweak list as needed\n  const words = String(txt)\n    .toLowerCase()\n    .replace(/[^\\p{L}\\p{N}\\s]/gu, ' ')\n    .split(/\\s+/)\n    .filter(w => w && w.length > 2 && !stop.has(w));\n  return words.slice(0, maxTerms).join(' ');\n}\n\n// --- Read entries ---\nlet entries = items?.[0]?.json?.output ?? items.map(i => i.json);\nif (typeof entries === 'string') {\n  try { entries = JSON.parse(entries); } catch { entries = []; }\n}\nentries = Array.isArray(entries) ? entries : toArray(entries);\n\n// --- Expand to one item per mention ---\nconst out = [];\nfor (const entry of entries) {\n  const place_id = entry?.place_id ?? '';\n  const context = String(entry?.cleaned_context ?? entry?.context ?? '');\n  const mentions = normalizeMentions(entry?.mentions);\n\n  for (const mention of mentions) {\n    const mention_no_at = mention.replace(/^@/, '');\n    const context_hint = buildContextHint(context, 2);\n    // Query template is just the mention without @\n    const query_template = mention_no_at;\n\n    const user_message = {\n      mentions: [mention],\n      context: context\n    };\n    const user_message_str = JSON.stringify(user_message);\n\n    out.push({\n      json: {\n        place_id,\n        mention,\n        mention_no_at,\n        context,\n        context_hint,\n        query_template,\n        user_message,\n        user_message_str\n      }\n    });\n  }\n}\n\n// If no mentions found, still emit a single item so you see the row\nif (out.length === 0 && entries.length > 0) {\n  const e = entries[0] || {};\n  const context = String(e.cleaned_context ?? e.context ?? '');\n  const user_message = { mentions: [], context };\n  out.push({\n    json: {\n      place_id: e.place_id ?? '',\n      mention: '',\n      mention_no_at: '',\n      context,\n      context_hint: buildContextHint(context, 2),\n      query_template: '',\n      user_message,\n      user_message_str: JSON.stringify(user_message)\n    }\n  });\n}\n\nreturn out;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -128,
+        -16
+      ],
+      "id": "02d6c184-c0c0-4fb8-8f41-7488121efcd2",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/customsearch/v1",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "AIzaSyDyKfjHYV5XQem2c-xZMPbKDTC-S0MW3rc"
+            },
+            {
+              "name": "cx",
+              "value": "c3f88709550604d5c"
+            },
+            {
+              "name": "q",
+              "value": "={{ $json.query_template }}"
+            },
+            {
+              "name": "num",
+              "value": "2"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        80
+      ],
+      "id": "google-search-api",
+      "name": "Google Search API"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract and format search results for each mention\n// Input: Google API response with items array\n// Output: formatted text combining first 2 search results\n\nconst mention = $json.mention || '';\nconst response = $json || {};\nconst items = response.items || [];\n\n// Extract title and snippet from first 2 results\nconst searchTexts = items\n  .slice(0, 2)\n  .map(item => {\n    const title = (item.title || '').trim();\n    const snippet = (item.snippet || '').trim();\n    return `${title} ${snippet}`;\n  })\n  .filter(text => text.trim().length > 0);\n\n// Combine all search text into one string\nconst combinedSearchText = searchTexts\n  .join(' ')\n  .replace(/\\s+/g, ' ')\n  .trim();\n\nreturn {\n  json: {\n    mention: mention,\n    search_text: combinedSearchText,\n    formatted_result: `${mention}, ${combinedSearchText}`\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        80
+      ],
+      "id": "format-search-results",
+      "name": "Format Search Results"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Clean search text by removing numbers, @mentions, dates, years, and other noise\n// Input: Formatted search results with mention and search_text\n// Output: Clean text suitable for AI processing\n\nconst mention = $json.mention || '';\nconst searchText = $json.search_text || '';\n\n// Function to clean text\nfunction cleanTextForAI(text) {\n  if (!text || typeof text !== 'string') return '';\n  \n  let cleaned = text;\n  \n  // Remove @mentions (e.g., @username, @handle123)\n  cleaned = cleaned.replace(/@[a-zA-Z0-9._]+/g, ' ');\n  \n  // Remove all numbers (standalone and in words)\n  cleaned = cleaned.replace(/\\b\\d+\\b/g, ' ');\n  cleaned = cleaned.replace(/\\d+/g, '');\n  \n  // Remove years (1900-2099)\n  cleaned = cleaned.replace(/\\b(19|20)\\d{2}\\b/g, ' ');\n  \n  // Remove month names (full and abbreviated)\n  const months = [\n    'january', 'february', 'march', 'april', 'may', 'june',\n    'july', 'august', 'september', 'october', 'november', 'december',\n    'jan', 'feb', 'mar', 'apr', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'\n  ];\n  const monthPattern = new RegExp('\\\\b(' + months.join('|') + ')\\\\b', 'gi');\n  cleaned = cleaned.replace(monthPattern, ' ');\n  \n  // Remove weekdays (full and abbreviated)\n  const weekdays = [\n    'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',\n    'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'\n  ];\n  const weekdayPattern = new RegExp('\\\\b(' + weekdays.join('|') + ')\\\\b', 'gi');\n  cleaned = cleaned.replace(weekdayPattern, ' ');\n  \n  // Remove time references\n  const timeWords = [\n    'am', 'pm', 'morning', 'afternoon', 'evening', 'night', 'midnight', 'noon',\n    'today', 'tomorrow', 'yesterday', 'tonight', 'weekday', 'weekend', 'weekdays', 'weekends',\n    'daily', 'weekly', 'monthly', 'yearly', 'annual', 'hourly',\n    'now', 'soon', 'later', 'early', 'late', 'before', 'after',\n    'time', 'hour', 'hours', 'minute', 'minutes', 'second', 'seconds',\n    'clock', 'schedule', 'timing'\n  ];\n  const timePattern = new RegExp('\\\\b(' + timeWords.join('|') + ')\\\\b', 'gi');\n  cleaned = cleaned.replace(timePattern, ' ');\n  \n  // Remove common date patterns\n  cleaned = cleaned.replace(/\\b\\d{1,2}[\\/-]\\d{1,2}[\\/-]\\d{2,4}\\b/g, ' ');\n  cleaned = cleaned.replace(/\\b\\d{1,2}\\s+(st|nd|rd|th)\\b/gi, ' ');\n  \n  // Remove URLs\n  cleaned = cleaned.replace(/https?:\\/\\/[^\\s]+/gi, ' ');\n  cleaned = cleaned.replace(/www\\.[^\\s]+/gi, ' ');\n  \n  // Remove email addresses\n  cleaned = cleaned.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/g, ' ');\n  \n  // Remove special characters and punctuation (keep only letters and spaces)\n  cleaned = cleaned.replace(/[^a-zA-Z\\s]/g, ' ');\n  \n  // Remove common noise words\n  const noiseWords = [\n    'instagram', 'facebook', 'twitter', 'youtube', 'tiktok', 'snapchat',\n    'follow', 'like', 'share', 'subscribe', 'click', 'link', 'bio',\n    'story', 'post', 'photo', 'video', 'live', 'stream',\n    'www', 'com', 'org', 'net', 'html', 'php',\n    'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'\n  ];\n  const noisePattern = new RegExp('\\\\b(' + noiseWords.join('|') + ')\\\\b', 'gi');\n  cleaned = cleaned.replace(noisePattern, ' ');\n  \n  // Clean up multiple spaces\n  cleaned = cleaned.replace(/\\s+/g, ' ');\n  \n  // Trim and return\n  return cleaned.trim();\n}\n\nconst cleanedText = cleanTextForAI(searchText);\n\nreturn {\n  json: {\n    mention: mention,\n    original_search_text: searchText,\n    cleaned_text: cleanedText,\n    formatted_result: `${mention}, ${cleanedText}`\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        80
+      ],
+      "id": "clean-search-text",
+      "name": "Clean Search Text"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggregate all cleaned mention results into final output format\n// Input: Array of cleaned results from previous node\n// Output: Single string with format: mention1, cleaned_text || mention2, cleaned_text2\n\nconst allResults = items.map(item => item.json.formatted_result).filter(Boolean);\n\n// Join all results with \" || \" separator\nconst finalOutput = allResults.join(' || ');\n\n// Also provide cleaned individual results for AI processing\nconst cleanedResults = items.map(item => ({\n  mention: item.json.mention,\n  original_text: item.json.original_search_text,\n  cleaned_text: item.json.cleaned_text\n}));\n\nreturn {\n  json: {\n    final_output: finalOutput,\n    total_mentions: allResults.length,\n    cleaned_results: cleanedResults,\n    ai_ready_text: cleanedResults.map(r => `${r.mention}: ${r.cleaned_text}`).join(' || ')\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        820,
+        80
+      ],
+      "id": "aggregate-results",
+      "name": "Aggregate Results"
+    }
+  ],
+  "connections": {
+    "Cleaning Context Code": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Google Search API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Search API": {
+      "main": [
+        [
+          {
+            "node": "Format Search Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Search Results": {
+      "main": [
+        [
+          {
+            "node": "Clean Search Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Search Text": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a0855a4a4512786ef768e7fc0c1e27ce926351d9433f3bf32740e4f59c877b59"
+  }
+}
